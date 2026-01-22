@@ -1,4 +1,5 @@
 import type { Configuration } from 'webpack';
+import * as path from 'path';
 
 import { rules } from './webpack.rules';
 import { plugins } from './webpack.plugins';
@@ -16,9 +17,9 @@ export const mainConfig: Configuration = {
   plugins,
   resolve: {
     extensions: ['.js', '.ts', '.jsx', '.tsx', '.css', '.json'],
-  },
-  // Native modules for better-sqlite3
-  externals: {
-    'better-sqlite3': 'commonjs better-sqlite3',
+    alias: {
+      // Redirect better-sqlite3 imports to our loader shim
+      'better-sqlite3$': path.resolve(__dirname, 'src/main/better-sqlite3-loader.js'),
+    },
   },
 };

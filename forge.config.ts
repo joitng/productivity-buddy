@@ -7,19 +7,64 @@ import { AutoUnpackNativesPlugin } from '@electron-forge/plugin-auto-unpack-nati
 import { WebpackPlugin } from '@electron-forge/plugin-webpack';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
+import * as path from 'path';
+import * as fs from 'fs';
 
 import { mainConfig } from './webpack.main.config';
 import { rendererConfig } from './webpack.renderer.config';
 
+// Helper to copy directory recursively
+function copyRecursiveSync(src: string, dest: string) {
+  const exists = fs.existsSync(src);
+  const stats = exists && fs.statSync(src);
+  const isDirectory = exists && stats && stats.isDirectory();
+  if (isDirectory) {
+    if (!fs.existsSync(dest)) {
+      fs.mkdirSync(dest, { recursive: true });
+    }
+    fs.readdirSync(src).forEach((childItemName) => {
+      copyRecursiveSync(path.join(src, childItemName), path.join(dest, childItemName));
+    });
+  } else {
+    fs.copyFileSync(src, dest);
+  }
+}
+
 const config: ForgeConfig = {
   packagerConfig: {
-    asar: true,
+    asar: {
+      unpack: '**/{better-sqlite3,bindings,file-uri-to-path}/**/*',
+    },
     name: 'Productivity Buddy',
     icon: './assets/icon',
     appBundleId: 'com.productivitybuddy.app',
     appCategoryType: 'public.app-category.productivity',
   },
   rebuildConfig: {},
+  hooks: {
+    postPackage: async (_config, options) => {
+      // Copy native modules to the packaged app
+      const nativeModules = ['better-sqlite3', 'bindings', 'file-uri-to-path'];
+      const outputPath = options.outputPaths[0];
+      const resourcesPath = path.join(outputPath, 'Productivity Buddy.app', 'Contents', 'Resources');
+      const unpackedPath = path.join(resourcesPath, 'app.asar.unpacked', 'node_modules');
+
+      // Create unpacked directory
+      if (!fs.existsSync(unpackedPath)) {
+        fs.mkdirSync(unpackedPath, { recursive: true });
+      }
+
+      // Copy each native module
+      for (const mod of nativeModules) {
+        const srcPath = path.join(__dirname, 'node_modules', mod);
+        const destPath = path.join(unpackedPath, mod);
+        if (fs.existsSync(srcPath)) {
+          console.log(`Copying native module: ${mod}`);
+          copyRecursiveSync(srcPath, destPath);
+        }
+      }
+    },
+  },
   makers: [
     new MakerSquirrel({}),
     new MakerZIP({}, ['darwin']),

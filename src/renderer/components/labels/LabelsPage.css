@@ -1,0 +1,87 @@
+.labels-page {
+  max-width: 800px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--spacing-lg);
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: var(--spacing-xs);
+}
+
+.page-description {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.editor-card {
+  margin-bottom: var(--spacing-lg);
+}
+
+.editor-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: var(--spacing-md);
+}
+
+.labels-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.label-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.label-header {
+  display: flex;
+  align-items: center;
+}
+
+.label-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--radius-md);
+  font-weight: 500;
+}
+
+.label-emoji {
+  font-size: 16px;
+}
+
+.label-recurrence {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.label-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--border-color);
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: var(--spacing-xl);
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--text-secondary);
+}

@@ -1,0 +1,63 @@
+.day-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--spacing-sm) 0;
+  gap: var(--spacing-xs);
+}
+
+.day-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.day-name {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.day-number {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.day-header.today .day-name {
+  color: var(--primary);
+}
+
+.today-number {
+  background: var(--primary);
+  color: white !important;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.day-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 500;
+  max-width: 100%;
+}
+
+.label-emoji {
+  font-size: 12px;
+}
+
+.label-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

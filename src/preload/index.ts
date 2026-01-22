@@ -1,0 +1,111 @@
+import { contextBridge, ipcRenderer } from 'electron';
+import type {
+  ScheduledChunk,
+  ChunkOverride,
+  DayLabel,
+  DayLabelOverride,
+  CheckIn,
+  GoogleCalendarEvent,
+  SyncedCalendar,
+} from '../shared/types';
+
+const electronAPI = {
+  // Chunks
+  chunks: {
+    getAll: (): Promise<ScheduledChunk[]> => ipcRenderer.invoke('db:chunks:getAll'),
+    create: (chunk: Omit<ScheduledChunk, 'id' | 'createdAt' | 'updatedAt'>): Promise<ScheduledChunk> =>
+      ipcRenderer.invoke('db:chunks:create', chunk),
+    update: (id: string, chunk: Partial<ScheduledChunk>): Promise<ScheduledChunk> =>
+      ipcRenderer.invoke('db:chunks:update', id, chunk),
+    delete: (id: string): Promise<void> => ipcRenderer.invoke('db:chunks:delete', id),
+  },
+
+  // Chunk Overrides
+  chunkOverrides: {
+    getByDateRange: (startDate: string, endDate: string): Promise<ChunkOverride[]> =>
+      ipcRenderer.invoke('db:chunk-overrides:getByDateRange', startDate, endDate),
+    create: (override: Omit<ChunkOverride, 'id' | 'createdAt'>): Promise<ChunkOverride> =>
+      ipcRenderer.invoke('db:chunk-overrides:create', override),
+    delete: (id: string): Promise<void> => ipcRenderer.invoke('db:chunk-overrides:delete', id),
+  },
+
+  // Day Labels
+  dayLabels: {
+    getAll: (): Promise<DayLabel[]> => ipcRenderer.invoke('db:day-labels:getAll'),
+    create: (label: Omit<DayLabel, 'id' | 'createdAt' | 'updatedAt'>): Promise<DayLabel> =>
+      ipcRenderer.invoke('db:day-labels:create', label),
+    update: (id: string, label: Partial<DayLabel>): Promise<DayLabel> =>
+      ipcRenderer.invoke('db:day-labels:update', id, label),
+    delete: (id: string): Promise<void> => ipcRenderer.invoke('db:day-labels:delete', id),
+  },
+
+  // Day Label Overrides
+  dayLabelOverrides: {
+    getByDateRange: (startDate: string, endDate: string): Promise<DayLabelOverride[]> =>
+      ipcRenderer.invoke('db:day-label-overrides:getByDateRange', startDate, endDate),
+    create: (override: Omit<DayLabelOverride, 'id' | 'createdAt'>): Promise<DayLabelOverride> =>
+      ipcRenderer.invoke('db:day-label-overrides:create', override),
+    delete: (id: string): Promise<void> => ipcRenderer.invoke('db:day-label-overrides:delete', id),
+  },
+
+  // Check-ins
+  checkIns: {
+    create: (checkIn: Omit<CheckIn, 'id' | 'createdAt'>): Promise<CheckIn> =>
+      ipcRenderer.invoke('db:check-ins:create', checkIn),
+    getByDateRange: (startDate: string, endDate: string): Promise<CheckIn[]> =>
+      ipcRenderer.invoke('db:check-ins:getByDateRange', startDate, endDate),
+    getAll: (): Promise<CheckIn[]> =>
+      ipcRenderer.invoke('db:check-ins:getAll'),
+  },
+
+  // Google Calendar Events
+  googleEvents: {
+    getByDateRange: (startDate: string, endDate: string): Promise<GoogleCalendarEvent[]> =>
+      ipcRenderer.invoke('db:google-events:getByDateRange', startDate, endDate),
+    toggleFixed: (id: string, isFixed: boolean): Promise<void> =>
+      ipcRenderer.invoke('db:google-events:toggleFixed', id, isFixed),
+    delete: (id: string): Promise<void> =>
+      ipcRenderer.invoke('db:google-events:delete', id),
+  },
+
+  // Synced Calendars
+  syncedCalendars: {
+    getAll: (): Promise<SyncedCalendar[]> => ipcRenderer.invoke('db:synced-calendars:getAll'),
+    toggle: (id: string, isEnabled: boolean): Promise<void> =>
+      ipcRenderer.invoke('db:synced-calendars:toggle', id, isEnabled),
+  },
+
+  // App Settings
+  settings: {
+    get: (key: string): Promise<string | null> => ipcRenderer.invoke('db:settings:get', key),
+    set: (key: string, value: string): Promise<void> => ipcRenderer.invoke('db:settings:set', key, value),
+  },
+
+  // Google Auth
+  google: {
+    startAuth: (): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('google:auth:start'),
+    getStatus: (): Promise<{ isAuthenticated: boolean; email?: string }> => ipcRenderer.invoke('google:auth:status'),
+    logout: (): Promise<void> => ipcRenderer.invoke('google:auth:logout'),
+    sync: (): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('google:sync'),
+  },
+
+  // Check-in popup
+  checkIn: {
+    submit: (data: Omit<CheckIn, 'id' | 'createdAt'>): Promise<void> =>
+      ipcRenderer.invoke('checkin:submit', data),
+    snooze: (): Promise<void> => ipcRenderer.invoke('checkin:snooze'),
+    close: (): Promise<void> => ipcRenderer.invoke('checkin:close'),
+    onShow: (callback: (chunkId: string, chunkName: string) => void): void => {
+      ipcRenderer.on('checkin:show', (_, chunkId, chunkName) => callback(chunkId, chunkName));
+    },
+  },
+};
+
+contextBridge.exposeInMainWorld('electronAPI', electronAPI);
+
+// Type declaration for renderer
+declare global {
+  interface Window {
+    electronAPI: typeof electronAPI;
+  }
+}

@@ -1,0 +1,108 @@
+.recurrence-selector {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.recurrence-type select {
+  width: 100%;
+}
+
+.days-selector {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+.day-btn {
+  width: 40px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  transition: all 0.15s ease;
+}
+
+.day-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.day-btn.selected {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+
+.monthly-selector {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.monthly-selector label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.monthly-selector select {
+  width: 80px;
+}
+
+.nth-weekday-selector {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.nth-weekday-selector select {
+  width: auto;
+}
+
+.nth-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.once-selector {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.once-selector label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.once-selector input[type="date"] {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.biweekly-anchor {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.biweekly-anchor label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.biweekly-anchor input[type="date"] {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}

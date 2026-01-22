@@ -1,0 +1,268 @@
+.calendar-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.calendar-container {
+  flex: 1;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  padding: var(--spacing-sm) var(--spacing-md) var(--spacing-md) var(--spacing-md);
+  overflow: hidden;
+}
+
+.calendar-container .rbc-calendar {
+  height: 100%;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-secondary);
+  font-size: 16px;
+}
+
+/* Calendar toolbar customization */
+.rbc-toolbar {
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Reorder nav buttons: Back, Today (blue), Next */
+.rbc-toolbar .rbc-btn-group:first-child {
+  display: flex;
+}
+
+/* Today button (1st in DOM) - move to middle, style blue */
+.rbc-toolbar .rbc-btn-group:first-child button:nth-child(1) {
+  order: 2;
+  background-color: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.rbc-toolbar .rbc-btn-group:first-child button:nth-child(1):hover {
+  background-color: var(--primary-hover, #3b5bdb);
+}
+
+/* Back button (2nd in DOM) - move to first */
+.rbc-toolbar .rbc-btn-group:first-child button:nth-child(2) {
+  order: 1;
+}
+
+/* Next button stays last */
+.rbc-toolbar .rbc-btn-group:first-child button:nth-child(3) {
+  order: 3;
+}
+
+/* Header row - give space for day labels */
+.rbc-time-header-content > .rbc-row:first-child {
+  min-height: 85px !important;
+}
+
+.rbc-time-header-content > .rbc-row:first-child .rbc-header {
+  min-height: 85px !important;
+  padding: var(--spacing-sm) var(--spacing-xs);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rbc-header .day-header {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.rbc-toolbar-label {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* All-day events section - reduce default height */
+.rbc-time-view .rbc-allday-cell {
+  height: auto !important;
+  min-height: 22px;
+  padding: 2px 0;
+}
+
+.rbc-time-view .rbc-allday-cell .rbc-row-content {
+  height: auto !important;
+  min-height: 18px;
+}
+
+.rbc-time-view .rbc-allday-cell .rbc-row-bg {
+  height: auto !important;
+}
+
+/* Compact styling for all-day events */
+.rbc-time-view .rbc-allday-cell .rbc-event {
+  height: 18px !important;
+  line-height: 16px !important;
+  padding: 0 4px !important;
+  font-size: 11px;
+}
+
+.rbc-time-view .rbc-allday-cell .rbc-row-segment {
+  height: 18px;
+}
+
+/* Match the gutter height */
+.rbc-time-header-gutter {
+  height: auto !important;
+  min-height: 22px;
+}
+
+/* Time slots - must be same height for gutter and day columns */
+.rbc-timeslot-group {
+  min-height: 60px;
+}
+
+.rbc-time-slot {
+  border-top: none;
+}
+
+/* Events */
+.rbc-event {
+  padding: 4px 8px !important;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+/* Chunks show behind Google events */
+.rbc-event.chunk-event-wrapper {
+  z-index: 1 !important;
+}
+
+.rbc-event.google-event-wrapper {
+  z-index: 2 !important;
+}
+
+.rbc-event-content {
+  font-size: 12px;
+  font-weight: 500;
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.3;
+}
+
+.rbc-event-label {
+  display: none;
+}
+
+/* Day columns */
+.rbc-day-slot .rbc-time-slot {
+  border-top: 1px solid var(--border-color);
+  opacity: 0.3;
+}
+
+.rbc-day-slot .rbc-events-container {
+  margin-right: 4px;
+}
+
+/* Current time indicator */
+.rbc-current-time-indicator {
+  background-color: var(--danger);
+  height: 2px;
+}
+
+.rbc-current-time-indicator::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: -4px;
+  width: 10px;
+  height: 10px;
+  background-color: var(--danger);
+  border-radius: 50%;
+}
+
+/* Chunk Editor Modal */
+.chunk-editor-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.chunk-editor-modal-content {
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.chunk-editor-modal-content h3 {
+  margin: 0 0 var(--spacing-md) 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* Edit scope dialog */
+.edit-scope-dialog {
+  max-width: 420px;
+}
+
+.edit-scope-dialog p {
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-lg);
+}
+
+.edit-scope-buttons {
+  display: flex;
+  gap: var(--spacing-sm);
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.scope-section {
+  margin-bottom: var(--spacing-md);
+}
+
+.scope-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.btn-danger {
+  background-color: var(--danger, #dc3545);
+  border-color: var(--danger, #dc3545);
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #c82333;
+  border-color: #bd2130;
+}
+
+.btn-danger-outline {
+  background-color: transparent;
+  border: 1px solid var(--danger, #dc3545);
+  color: var(--danger, #dc3545);
+}
+
+.btn-danger-outline:hover {
+  background-color: var(--danger, #dc3545);
+  color: white;
+}

@@ -1,0 +1,158 @@
+.chunks-page {
+  max-width: 800px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--spacing-lg);
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: var(--spacing-xs);
+}
+
+.page-description {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.editor-card {
+  margin-bottom: var(--spacing-lg);
+}
+
+.editor-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: var(--spacing-md);
+}
+
+.chunks-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.chunk-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.chunk-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.chunk-color {
+  width: 8px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.chunk-info {
+  flex: 1;
+}
+
+.chunk-name {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.chunk-time {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.chunk-recurrence {
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding-left: calc(8px + var(--spacing-md));
+}
+
+.chunk-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--border-color);
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: var(--spacing-xl);
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--text-secondary);
+}
+
+/* Day sections */
+.day-section {
+  margin-bottom: var(--spacing-md);
+}
+
+.day-header-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.day-header-toggle:hover {
+  background: var(--border-color);
+}
+
+.toggle-icon {
+  font-size: 10px;
+  color: var(--text-secondary);
+  transition: transform 0.2s ease;
+}
+
+.toggle-icon.collapsed {
+  transform: rotate(-90deg);
+}
+
+.day-name {
+  font-weight: 600;
+  flex: 1;
+  text-align: left;
+}
+
+.chunk-count {
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.day-chunks {
+  margin-top: var(--spacing-sm);
+  margin-left: var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.day-empty {
+  padding: var(--spacing-sm);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-style: italic;
+}

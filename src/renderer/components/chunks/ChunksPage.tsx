@@ -42,6 +42,7 @@ function ChunksPage(): React.ReactElement {
     try {
       await window.electronAPI.chunks.delete(id);
       await loadChunks();
+      await window.electronAPI.checkIn.refreshSchedule();
     } catch (error) {
       console.error('Failed to delete chunk:', error);
     }
@@ -57,6 +58,7 @@ function ChunksPage(): React.ReactElement {
       setEditingChunk(null);
       setIsCreating(false);
       await loadChunks();
+      await window.electronAPI.checkIn.refreshSchedule();
     } catch (error) {
       console.error('Failed to save chunk:', error);
     }

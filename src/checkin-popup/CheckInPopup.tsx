@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 function CheckInPopup(): React.ReactElement {
   const [chunkId, setChunkId] = useState<string>('');
@@ -10,8 +10,15 @@ function CheckInPopup(): React.ReactElement {
   const [moodRating, setMoodRating] = useState<number | null>(null);
   const [comments, setComments] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [existingTags, setExistingTags] = useState<string[]>([]);
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  const tagInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    // Load existing tags
+    window.electronAPI.checkIns.getUniqueTags().then(setExistingTags);
+
     window.electronAPI.checkIn.onShow((id, name, breakReminder) => {
       setChunkId(id);
       setChunkName(name);
@@ -22,8 +29,59 @@ function CheckInPopup(): React.ReactElement {
       setFlowRating(null);
       setMoodRating(null);
       setComments('');
+      setShowTagSuggestions(false);
+      setSelectedSuggestionIndex(-1);
+      // Refresh tags in case new ones were added
+      window.electronAPI.checkIns.getUniqueTags().then(setExistingTags);
     });
   }, []);
+
+  // Filter suggestions based on current input
+  const filteredSuggestions = existingTags.filter(
+    tag => tag.toLowerCase().includes(taskTag.toLowerCase()) && tag.toLowerCase() !== taskTag.toLowerCase()
+  );
+
+  const handleTagInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setTaskTag(e.target.value);
+    setShowTagSuggestions(e.target.value.length > 0 && filteredSuggestions.length > 0);
+    setSelectedSuggestionIndex(-1);
+  };
+
+  const handleTagInputFocus = () => {
+    if (taskTag.length > 0 && filteredSuggestions.length > 0) {
+      setShowTagSuggestions(true);
+    }
+  };
+
+  const handleTagInputBlur = () => {
+    // Delay hiding to allow click on suggestion
+    setTimeout(() => setShowTagSuggestions(false), 150);
+  };
+
+  const handleTagInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showTagSuggestions || filteredSuggestions.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedSuggestionIndex(prev =>
+        prev < filteredSuggestions.length - 1 ? prev + 1 : prev
+      );
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedSuggestionIndex(prev => (prev > 0 ? prev - 1 : -1));
+    } else if (e.key === 'Enter' && selectedSuggestionIndex >= 0) {
+      e.preventDefault();
+      selectSuggestion(filteredSuggestions[selectedSuggestionIndex]);
+    } else if (e.key === 'Escape') {
+      setShowTagSuggestions(false);
+    }
+  };
+
+  const selectSuggestion = (tag: string) => {
+    setTaskTag(tag);
+    setShowTagSuggestions(false);
+    setSelectedSuggestionIndex(-1);
+  };
 
   const handleSubmit = async () => {
     if (onTask === null || flowRating === null || moodRating === null) return;
@@ -94,13 +152,33 @@ function CheckInPopup(): React.ReactElement {
             </button>
           </div>
           {onTask !== null && (
-            <input
-              type="text"
-              className="task-tag-input"
-              value={taskTag}
-              onChange={(e) => setTaskTag(e.target.value)}
-              placeholder={onTask ? "What task? (optional)" : "What are you working on instead?"}
-            />
+            <div className="task-tag-container">
+              <input
+                ref={tagInputRef}
+                type="text"
+                className="task-tag-input"
+                value={taskTag}
+                onChange={handleTagInputChange}
+                onFocus={handleTagInputFocus}
+                onBlur={handleTagInputBlur}
+                onKeyDown={handleTagInputKeyDown}
+                placeholder={onTask ? "What task? (optional)" : "What are you working on instead?"}
+                autoComplete="off"
+              />
+              {showTagSuggestions && filteredSuggestions.length > 0 && (
+                <div className="tag-suggestions">
+                  {filteredSuggestions.slice(0, 5).map((tag, index) => (
+                    <div
+                      key={tag}
+                      className={`tag-suggestion ${index === selectedSuggestionIndex ? 'selected' : ''}`}
+                      onMouseDown={() => selectSuggestion(tag)}
+                    >
+                      {tag}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
 

@@ -34,10 +34,19 @@ export function registerDatabaseHandlers(): void {
 
   ipcMain.handle('db:chunks:update', async (_, id: string, chunk: Partial<ScheduledChunk>) => {
     const now = new Date().toISOString();
-    const updateData: Record<string, unknown> = { ...chunk, updatedAt: now };
-    if (chunk.recurrence) {
+    const updateData: Record<string, unknown> = { updatedAt: now };
+
+    // Explicitly handle each field to ensure undefined values become null
+    if ('name' in chunk) updateData.name = chunk.name;
+    if ('startTime' in chunk) updateData.startTime = chunk.startTime;
+    if ('endTime' in chunk) updateData.endTime = chunk.endTime;
+    if ('color' in chunk) updateData.color = chunk.color ?? null;
+    if ('startDate' in chunk) updateData.startDate = chunk.startDate ?? null;
+    if ('endDate' in chunk) updateData.endDate = chunk.endDate ?? null;
+    if ('recurrence' in chunk && chunk.recurrence) {
       updateData.recurrence = JSON.stringify(chunk.recurrence);
     }
+
     db.update(schema.scheduledChunks).set(updateData).where(eq(schema.scheduledChunks.id, id)).run();
     const updated = db.select().from(schema.scheduledChunks).where(eq(schema.scheduledChunks.id, id)).get();
     if (!updated) throw new Error('Chunk not found');
@@ -165,6 +174,17 @@ export function registerDatabaseHandlers(): void {
 
   ipcMain.handle('db:check-ins:getAll', async () => {
     return db.select().from(schema.checkIns).all();
+  });
+
+  ipcMain.handle('db:check-ins:getUniqueTags', async () => {
+    const checkIns = db.select({ taskTag: schema.checkIns.taskTag }).from(schema.checkIns).all();
+    const tags = new Set<string>();
+    for (const checkIn of checkIns) {
+      if (checkIn.taskTag && checkIn.taskTag.trim()) {
+        tags.add(checkIn.taskTag.trim());
+      }
+    }
+    return Array.from(tags).sort();
   });
 
   // Google Calendar Events

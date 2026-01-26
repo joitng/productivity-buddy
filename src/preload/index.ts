@@ -56,6 +56,8 @@ const electronAPI = {
       ipcRenderer.invoke('db:check-ins:getByDateRange', startDate, endDate),
     getAll: (): Promise<CheckIn[]> =>
       ipcRenderer.invoke('db:check-ins:getAll'),
+    getUniqueTags: (): Promise<string[]> =>
+      ipcRenderer.invoke('db:check-ins:getUniqueTags'),
   },
 
   // Google Calendar Events
@@ -95,6 +97,7 @@ const electronAPI = {
       ipcRenderer.invoke('checkin:submit', data),
     snooze: (): Promise<void> => ipcRenderer.invoke('checkin:snooze'),
     close: (): Promise<void> => ipcRenderer.invoke('checkin:close'),
+    refreshSchedule: (): Promise<void> => ipcRenderer.invoke('checkin:refresh-schedule'),
     onShow: (callback: (chunkId: string, chunkName: string, showBreakReminder: boolean) => void): void => {
       ipcRenderer.on('checkin:show', (_, chunkId, chunkName, showBreakReminder) => callback(chunkId, chunkName, showBreakReminder));
     },

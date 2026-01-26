@@ -204,6 +204,7 @@ function CalendarPage(): React.ReactElement {
       setShowChunkEditor(false);
       setNewChunkSlot(null);
       await loadData();
+      await window.electronAPI.checkIn.refreshSchedule();
     } catch (error) {
       console.error('Failed to create chunk:', error);
     }
@@ -275,6 +276,7 @@ function CalendarPage(): React.ReactElement {
       setEditingChunk(null);
       setEditingDate(null);
       await loadData();
+      await window.electronAPI.checkIn.refreshSchedule();
     } catch (error) {
       console.error('Failed to delete this occurrence:', error);
     }
@@ -297,6 +299,7 @@ function CalendarPage(): React.ReactElement {
       setEditingChunk(null);
       setEditingDate(null);
       await loadData();
+      await window.electronAPI.checkIn.refreshSchedule();
     } catch (error) {
       console.error('Failed to delete after this:', error);
     }
@@ -312,6 +315,7 @@ function CalendarPage(): React.ReactElement {
       setEditingChunk(null);
       setEditingDate(null);
       await loadData();
+      await window.electronAPI.checkIn.refreshSchedule();
     } catch (error) {
       console.error('Failed to delete chunk:', error);
     }
@@ -326,6 +330,7 @@ function CalendarPage(): React.ReactElement {
       setEditingChunk(null);
       setEditingDate(null);
       await loadData();
+      await window.electronAPI.checkIn.refreshSchedule();
     } catch (error) {
       console.error('Failed to update chunk:', error);
     }
@@ -360,6 +365,7 @@ function CalendarPage(): React.ReactElement {
       setEditingChunk(null);
       setEditingDate(null);
       await loadData();
+      await window.electronAPI.checkIn.refreshSchedule();
     } catch (error) {
       console.error('Failed to create override:', error);
     }
@@ -390,6 +396,7 @@ function CalendarPage(): React.ReactElement {
       setEditingDate(null);
       setEditAfterThisMode(false);
       await loadData();
+      await window.electronAPI.checkIn.refreshSchedule();
     } catch (error) {
       console.error('Failed to edit after this:', error);
     }

@@ -100,6 +100,11 @@ function registerCheckInHandlers(): void {
   ipcMain.handle('chunkend:snooze', async (_, minutes: number) => {
     snoozeChunkEnd(minutes);
   });
+
+  // Refresh check-in schedule (called when chunks are updated)
+  ipcMain.handle('checkin:refresh-schedule', async () => {
+    scheduleCheckInsForToday();
+  });
 }
 
 function scheduleNextDayCheckIns(): void {

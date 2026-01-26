@@ -2,19 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import type { CheckIn } from '../../shared/types';
 import './AnalyticsPage.css';
 
-interface ChunkStats {
-  chunkName: string;
-  totalCheckIns: number;
-  onTaskCount: number;
-  offTaskCount: number;
-  onTaskRate: number;
-  offTaskRate: number;
-  avgFlowRating: number;
-  flowRatings: number[];
-  lowFlowCount: number;
-  lowFlowRate: number;
-}
-
 interface WordFrequency {
   word: string;
   count: number;
@@ -25,6 +12,10 @@ interface TaskTagStats {
   total: number;
   onTaskCount: number;
   offTaskCount: number;
+  flowRatings: number[];
+  avgFlowRating: number;
+  lowFlowCount: number;
+  lowFlowRate: number;
 }
 
 // Common words to filter out (keeping nouns, adjectives, and action verbs)
@@ -156,23 +147,19 @@ function AnalyticsPage(): React.ReactElement {
     return checkIns.filter((c) => new Date(c.timestamp) >= cutoff);
   }, [checkIns, timeRange]);
 
-  // Calculate stats by chunk
-  const chunkStats = useMemo((): ChunkStats[] => {
-    const statsMap = new Map<string, {
-      totalCheckIns: number;
-      onTaskCount: number;
-      offTaskCount: number;
-      flowRatings: number[];
-      lowFlowCount: number;
-    }>();
+  // Task tag stats - what tasks are being worked on when on-task vs off-task
+  const taskTagStats = useMemo((): TaskTagStats[] => {
+    const statsMap = new Map<string, { total: number; onTaskCount: number; offTaskCount: number; flowRatings: number[]; lowFlowCount: number }>();
 
     for (const checkIn of filteredCheckIns) {
-      const name = checkIn.chunkName || 'Unknown Chunk';
-      if (!statsMap.has(name)) {
-        statsMap.set(name, { totalCheckIns: 0, onTaskCount: 0, offTaskCount: 0, flowRatings: [], lowFlowCount: 0 });
+      const tag = checkIn.taskTag?.trim();
+      if (!tag) continue;
+
+      if (!statsMap.has(tag)) {
+        statsMap.set(tag, { total: 0, onTaskCount: 0, offTaskCount: 0, flowRatings: [], lowFlowCount: 0 });
       }
-      const stats = statsMap.get(name)!;
-      stats.totalCheckIns++;
+      const stats = statsMap.get(tag)!;
+      stats.total++;
       if (checkIn.onTask) {
         stats.onTaskCount++;
       } else {
@@ -184,81 +171,18 @@ function AnalyticsPage(): React.ReactElement {
       }
     }
 
-    return Array.from(statsMap.entries()).map(([chunkName, stats]) => ({
-      chunkName,
-      totalCheckIns: stats.totalCheckIns,
-      onTaskCount: stats.onTaskCount,
-      offTaskCount: stats.offTaskCount,
-      onTaskRate: stats.totalCheckIns > 0 ? stats.onTaskCount / stats.totalCheckIns : 0,
-      offTaskRate: stats.totalCheckIns > 0 ? stats.offTaskCount / stats.totalCheckIns : 0,
-      avgFlowRating: stats.flowRatings.length > 0
-        ? stats.flowRatings.reduce((a, b) => a + b, 0) / stats.flowRatings.length
-        : 0,
-      flowRatings: stats.flowRatings,
-      lowFlowCount: stats.lowFlowCount,
-      lowFlowRate: stats.totalCheckIns > 0 ? stats.lowFlowCount / stats.totalCheckIns : 0,
-    }));
-  }, [filteredCheckIns]);
-
-  // Sort for different views
-  const mostOnTask = useMemo(() =>
-    [...chunkStats].filter(s => s.totalCheckIns >= 3).sort((a, b) => b.onTaskRate - a.onTaskRate),
-    [chunkStats]
-  );
-
-  const leastOnTask = useMemo(() =>
-    [...chunkStats].filter(s => s.totalCheckIns >= 3).sort((a, b) => a.onTaskRate - b.onTaskRate),
-    [chunkStats]
-  );
-
-  const highestFlow = useMemo(() =>
-    [...chunkStats].filter(s => s.totalCheckIns >= 3).sort((a, b) => b.avgFlowRating - a.avgFlowRating),
-    [chunkStats]
-  );
-
-  const lowestFlow = useMemo(() =>
-    [...chunkStats].filter(s => s.totalCheckIns >= 3).sort((a, b) => a.avgFlowRating - b.avgFlowRating),
-    [chunkStats]
-  );
-
-  // Most off-task by chunk (sorted by off-task rate)
-  const mostOffTask = useMemo(() =>
-    [...chunkStats].filter(s => s.totalCheckIns >= 3 && s.offTaskCount > 0).sort((a, b) => b.offTaskRate - a.offTaskRate),
-    [chunkStats]
-  );
-
-  // Most negative flow by chunk (sorted by low flow rate, i.e., percentage of check-ins with flow <= 2)
-  const mostNegativeFlow = useMemo(() =>
-    [...chunkStats].filter(s => s.totalCheckIns >= 3 && s.lowFlowCount > 0).sort((a, b) => b.lowFlowRate - a.lowFlowRate),
-    [chunkStats]
-  );
-
-  // Task tag stats - what tasks are being worked on when on-task vs off-task
-  const taskTagStats = useMemo((): TaskTagStats[] => {
-    const statsMap = new Map<string, { total: number; onTaskCount: number; offTaskCount: number }>();
-
-    for (const checkIn of filteredCheckIns) {
-      const tag = checkIn.taskTag?.trim();
-      if (!tag) continue;
-
-      if (!statsMap.has(tag)) {
-        statsMap.set(tag, { total: 0, onTaskCount: 0, offTaskCount: 0 });
-      }
-      const stats = statsMap.get(tag)!;
-      stats.total++;
-      if (checkIn.onTask) {
-        stats.onTaskCount++;
-      } else {
-        stats.offTaskCount++;
-      }
-    }
-
     return Array.from(statsMap.entries())
       .map(([taskTag, stats]) => ({
         taskTag,
         total: stats.total,
         onTaskCount: stats.onTaskCount,
         offTaskCount: stats.offTaskCount,
+        flowRatings: stats.flowRatings,
+        avgFlowRating: stats.flowRatings.length > 0
+          ? stats.flowRatings.reduce((a, b) => a + b, 0) / stats.flowRatings.length
+          : 0,
+        lowFlowCount: stats.lowFlowCount,
+        lowFlowRate: stats.total > 0 ? stats.lowFlowCount / stats.total : 0,
       }))
       .sort((a, b) => b.total - a.total);
   }, [filteredCheckIns]);
@@ -272,6 +196,17 @@ function AnalyticsPage(): React.ReactElement {
   // Top off-task tags (tags most commonly used when off-task)
   const topOffTaskTags = useMemo(() =>
     [...taskTagStats].filter(s => s.offTaskCount > 0).sort((a, b) => b.offTaskCount - a.offTaskCount).slice(0, 5),
+    [taskTagStats]
+  );
+
+  // Flow state by task - highest and lowest flow tasks
+  const highestFlowTasks = useMemo(() =>
+    [...taskTagStats].filter(s => s.total >= 2).sort((a, b) => b.avgFlowRating - a.avgFlowRating).slice(0, 5),
+    [taskTagStats]
+  );
+
+  const lowestFlowTasks = useMemo(() =>
+    [...taskTagStats].filter(s => s.total >= 2).sort((a, b) => a.avgFlowRating - b.avgFlowRating).slice(0, 5),
     [taskTagStats]
   );
 
@@ -404,160 +339,51 @@ function AnalyticsPage(): React.ReactElement {
         </div>
       </div>
 
-      {/* Chunk Analysis */}
-      <div className="analytics-grid">
-        {/* On-Task Analysis */}
-        <div className="analytics-section card">
-          <h2 className="section-title">On-Task by Schedule Chunk</h2>
-          <p className="section-description">Which chunks you're most likely to be working on what's scheduled</p>
+      {/* Flow State by Task */}
+      {taskTagStats.length > 0 && highestFlowTasks.length > 0 && (
+        <div className="analytics-grid">
+          <div className="analytics-section card">
+            <h2 className="section-title">Flow State by Task</h2>
+            <p className="section-description">Which tasks put you in the best flow state</p>
 
-          {mostOnTask.length === 0 ? (
-            <p className="no-data">Need at least 3 check-ins per chunk for analysis</p>
-          ) : (
-            <>
-              <h3 className="subsection-title best">Most On-Task</h3>
-              <div className="chunk-list">
-                {mostOnTask.slice(0, 5).map((stat) => (
-                  <div key={stat.chunkName} className="chunk-stat-row">
-                    <span className="chunk-name">{stat.chunkName}</span>
-                    <div className="stat-bar-container">
-                      <div
-                        className="stat-bar on-task"
-                        style={{ width: `${stat.onTaskRate * 100}%` }}
-                      />
-                    </div>
-                    <span className="stat-value">{(stat.onTaskRate * 100).toFixed(0)}%</span>
-                  </div>
-                ))}
-              </div>
-
-              {leastOnTask.length > 0 && leastOnTask[0].onTaskRate < 1 && (
-                <>
-                  <h3 className="subsection-title needs-work">Least On-Task</h3>
-                  <div className="chunk-list">
-                    {leastOnTask.slice(0, 3).map((stat) => (
-                      <div key={stat.chunkName} className="chunk-stat-row">
-                        <span className="chunk-name">{stat.chunkName}</span>
-                        <div className="stat-bar-container">
-                          <div
-                            className="stat-bar off-task"
-                            style={{ width: `${stat.onTaskRate * 100}%` }}
-                          />
-                        </div>
-                        <span className="stat-value">{(stat.onTaskRate * 100).toFixed(0)}%</span>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Flow Analysis */}
-        <div className="analytics-section card">
-          <h2 className="section-title">Flow State by Schedule Chunk</h2>
-          <p className="section-description">Which chunks you're most likely to be in a positive flow</p>
-
-          {highestFlow.length === 0 ? (
-            <p className="no-data">Need at least 3 check-ins per chunk for analysis</p>
-          ) : (
-            <>
-              <h3 className="subsection-title best">Highest Flow</h3>
-              <div className="chunk-list">
-                {highestFlow.slice(0, 5).map((stat) => (
-                  <div key={stat.chunkName} className="chunk-stat-row">
-                    <span className="chunk-name">{stat.chunkName}</span>
-                    <div className="stat-bar-container">
-                      <div
-                        className="stat-bar high-flow"
-                        style={{ width: `${(stat.avgFlowRating / 5) * 100}%` }}
-                      />
-                    </div>
-                    <span className="stat-value">{stat.avgFlowRating.toFixed(1)}/5</span>
-                  </div>
-                ))}
-              </div>
-
-              {lowestFlow.length > 0 && lowestFlow[0].avgFlowRating < 5 && (
-                <>
-                  <h3 className="subsection-title needs-work">Lowest Flow</h3>
-                  <div className="chunk-list">
-                    {lowestFlow.slice(0, 3).map((stat) => (
-                      <div key={stat.chunkName} className="chunk-stat-row">
-                        <span className="chunk-name">{stat.chunkName}</span>
-                        <div className="stat-bar-container">
-                          <div
-                            className="stat-bar low-flow"
-                            style={{ width: `${(stat.avgFlowRating / 5) * 100}%` }}
-                          />
-                        </div>
-                        <span className="stat-value">{stat.avgFlowRating.toFixed(1)}/5</span>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Off-Task and Negative Flow Analysis */}
-      <div className="analytics-grid">
-        {/* Off-Task by Chunk */}
-        <div className="analytics-section card">
-          <h2 className="section-title">Off-Task by Schedule Chunk</h2>
-          <p className="section-description">Which chunks you're most often not working on what's scheduled</p>
-
-          {mostOffTask.length === 0 ? (
-            <p className="no-data">No off-task check-ins recorded yet (or need at least 3 per chunk)</p>
-          ) : (
+            <h3 className="subsection-title best">Highest Flow</h3>
             <div className="chunk-list">
-              {mostOffTask.slice(0, 5).map((stat) => (
-                <div key={stat.chunkName} className="chunk-stat-row">
-                  <span className="chunk-name">{stat.chunkName}</span>
+              {highestFlowTasks.map((stat) => (
+                <div key={stat.taskTag} className="chunk-stat-row">
+                  <span className="chunk-name">{stat.taskTag}</span>
                   <div className="stat-bar-container">
                     <div
-                      className="stat-bar off-task"
-                      style={{ width: `${stat.offTaskRate * 100}%` }}
+                      className="stat-bar high-flow"
+                      style={{ width: `${(stat.avgFlowRating / 5) * 100}%` }}
                     />
                   </div>
-                  <span className="stat-value">{(stat.offTaskRate * 100).toFixed(0)}%</span>
+                  <span className="stat-value">{stat.avgFlowRating.toFixed(1)}/5</span>
                 </div>
               ))}
             </div>
-          )}
-        </div>
 
-        {/* Negative Flow by Chunk */}
-        <div className="analytics-section card">
-          <h2 className="section-title">Negative Flow by Schedule Chunk</h2>
-          <p className="section-description">Which chunks you're most often in low flow (rating 1-2)</p>
-
-          {mostNegativeFlow.length === 0 ? (
-            <p className="no-data">No low flow check-ins recorded yet (or need at least 3 per chunk)</p>
-          ) : (
-            <div className="chunk-list">
-              {mostNegativeFlow.slice(0, 5).map((stat) => (
-                <div key={stat.chunkName} className="chunk-stat-row">
-                  <span className="chunk-name">{stat.chunkName}</span>
-                  <div className="stat-bar-container">
-                    <div
-                      className="stat-bar low-flow"
-                      style={{ width: `${stat.lowFlowRate * 100}%` }}
-                    />
-                  </div>
-                  <span className="stat-value">
-                    {(stat.lowFlowRate * 100).toFixed(0)}%
-                    <span className="stat-subvalue"> ({stat.lowFlowCount})</span>
-                  </span>
+            {lowestFlowTasks.length > 0 && lowestFlowTasks[0].avgFlowRating < highestFlowTasks[0].avgFlowRating && (
+              <>
+                <h3 className="subsection-title needs-work">Lowest Flow</h3>
+                <div className="chunk-list">
+                  {lowestFlowTasks.slice(0, 3).map((stat) => (
+                    <div key={stat.taskTag} className="chunk-stat-row">
+                      <span className="chunk-name">{stat.taskTag}</span>
+                      <div className="stat-bar-container">
+                        <div
+                          className="stat-bar low-flow"
+                          style={{ width: `${(stat.avgFlowRating / 5) * 100}%` }}
+                        />
+                      </div>
+                      <span className="stat-value">{stat.avgFlowRating.toFixed(1)}/5</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
+              </>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Task Tag Analysis */}
       {taskTagStats.length > 0 && (

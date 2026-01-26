@@ -166,9 +166,13 @@ html, body, #root {
   color: var(--danger);
 }
 
+.task-tag-container {
+  position: relative;
+  margin-top: var(--spacing-sm);
+}
+
 .task-tag-input {
   width: 100%;
-  margin-top: var(--spacing-sm);
   padding: var(--spacing-sm) var(--spacing-md);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
@@ -184,6 +188,37 @@ html, body, #root {
 
 .task-tag-input::placeholder {
   color: var(--text-muted);
+}
+
+.tag-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-top: none;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.tag-suggestion {
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.tag-suggestion:hover,
+.tag-suggestion.selected {
+  background: var(--bg-tertiary);
+}
+
+.tag-suggestion.selected {
+  color: var(--primary);
 }
 
 .likert-scale {

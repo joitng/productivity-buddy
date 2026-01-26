@@ -95,8 +95,8 @@ const electronAPI = {
       ipcRenderer.invoke('checkin:submit', data),
     snooze: (): Promise<void> => ipcRenderer.invoke('checkin:snooze'),
     close: (): Promise<void> => ipcRenderer.invoke('checkin:close'),
-    onShow: (callback: (chunkId: string, chunkName: string) => void): void => {
-      ipcRenderer.on('checkin:show', (_, chunkId, chunkName) => callback(chunkId, chunkName));
+    onShow: (callback: (chunkId: string, chunkName: string, showBreakReminder: boolean) => void): void => {
+      ipcRenderer.on('checkin:show', (_, chunkId, chunkName, showBreakReminder) => callback(chunkId, chunkName, showBreakReminder));
     },
   },
 

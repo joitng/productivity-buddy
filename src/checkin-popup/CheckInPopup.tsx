@@ -3,15 +3,17 @@ import React, { useState, useEffect } from 'react';
 function CheckInPopup(): React.ReactElement {
   const [chunkId, setChunkId] = useState<string>('');
   const [chunkName, setChunkName] = useState<string>('');
+  const [showBreakReminder, setShowBreakReminder] = useState<boolean>(false);
   const [onTask, setOnTask] = useState<boolean | null>(null);
   const [flowRating, setFlowRating] = useState<number | null>(null);
   const [comments, setComments] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    window.electronAPI.checkIn.onShow((id, name) => {
+    window.electronAPI.checkIn.onShow((id, name, breakReminder) => {
       setChunkId(id);
       setChunkName(name);
+      setShowBreakReminder(breakReminder);
       // Reset form
       setOnTask(null);
       setFlowRating(null);
@@ -62,6 +64,12 @@ function CheckInPopup(): React.ReactElement {
           <span className="chunk-label">Current chunk:</span>
           <span className="chunk-name">{chunkName || 'Loading...'}</span>
         </div>
+
+        {showBreakReminder && (
+          <div className="break-reminder">
+            Remember to take a break!
+          </div>
+        )}
 
         <div className="question-section">
           <h3 className="question">Am I working on what's scheduled?</h3>

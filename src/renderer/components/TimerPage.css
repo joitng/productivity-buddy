@@ -1,0 +1,192 @@
+.timer-page {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.timer-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--spacing-xl);
+  gap: var(--spacing-lg);
+}
+
+.timer-display-wrapper {
+  position: relative;
+  width: 200px;
+  height: 200px;
+}
+
+.timer-progress {
+  width: 100%;
+  height: 100%;
+}
+
+.timer-progress-bg {
+  stroke: var(--bg-tertiary);
+}
+
+.timer-progress-fill {
+  stroke: var(--primary);
+  transition: stroke-dashoffset 0.3s ease;
+}
+
+.timer-display {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.timer-time {
+  font-size: 48px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  transition: color 0.3s ease;
+}
+
+.timer-time.complete {
+  color: var(--success);
+}
+
+.timer-complete-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--success);
+}
+
+.timer-adjust {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.adjust-btn {
+  width: 44px;
+  height: 36px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.adjust-btn:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.adjust-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.adjust-label {
+  min-width: 60px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.timer-controls {
+  display: flex;
+  gap: var(--spacing-md);
+}
+
+.control-btn {
+  padding: var(--spacing-sm) var(--spacing-xl);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.control-btn.start {
+  background: var(--primary);
+  color: white;
+}
+
+.control-btn.start:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+.control-btn.start:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.control-btn.pause {
+  background: var(--warning);
+  color: white;
+}
+
+.control-btn.pause:hover {
+  filter: brightness(0.9);
+}
+
+.control-btn.reset {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.control-btn.reset:hover {
+  background: var(--border-color);
+  color: var(--text-primary);
+}
+
+.timer-presets {
+  margin-top: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.presets-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.preset-buttons {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+.preset-btn {
+  padding: var(--spacing-xs) var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.preset-btn:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.preset-btn.active {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: white;
+}
+
+.preset-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

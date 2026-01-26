@@ -26,6 +26,7 @@ let currentChunkName: string | null = null;
 let currentEndChunkName: string | null = null;
 let snoozeTimeout: NodeJS.Timeout | null = null;
 let chunkEndSnoozeTimeout: NodeJS.Timeout | null = null;
+let checkInCounter: number = 0; // Track check-in count for break reminders
 
 declare const CHECKIN_WINDOW_WEBPACK_ENTRY: string;
 declare const CHECKIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
@@ -250,9 +251,13 @@ function calculateCheckInTimes(startTime: string, endTime: string, date: Date): 
 }
 
 export function showCheckInPopup(chunkId: string, chunkName: string): void {
+  // Increment counter and determine if this is a break reminder check-in
+  checkInCounter++;
+  const showBreakReminder = checkInCounter % 2 === 0;
+
   if (checkInWindow && !checkInWindow.isDestroyed()) {
     checkInWindow.focus();
-    checkInWindow.webContents.send('checkin:show', chunkId, chunkName);
+    checkInWindow.webContents.send('checkin:show', chunkId, chunkName, showBreakReminder);
     return;
   }
 
@@ -261,7 +266,7 @@ export function showCheckInPopup(chunkId: string, chunkName: string): void {
 
   checkInWindow = new BrowserWindow({
     width: 400,
-    height: 450,
+    height: 480,
     frame: false,
     alwaysOnTop: true,
     resizable: false,
@@ -279,7 +284,7 @@ export function showCheckInPopup(chunkId: string, chunkName: string): void {
   checkInWindow.center();
 
   checkInWindow.webContents.on('did-finish-load', () => {
-    checkInWindow?.webContents.send('checkin:show', chunkId, chunkName);
+    checkInWindow?.webContents.send('checkin:show', chunkId, chunkName, showBreakReminder);
   });
 
   checkInWindow.on('closed', () => {

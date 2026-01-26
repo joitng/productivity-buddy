@@ -5,9 +5,10 @@ import ChunksPage from './components/chunks/ChunksPage';
 import LabelsPage from './components/labels/LabelsPage';
 import SettingsPage from './components/settings/SettingsPage';
 import AnalyticsPage from './components/AnalyticsPage';
+import TimerPage from './components/TimerPage';
 import './App.css';
 
-type Page = 'calendar' | 'chunks' | 'labels' | 'settings' | 'analytics';
+type Page = 'calendar' | 'chunks' | 'labels' | 'settings' | 'analytics' | 'timer';
 
 function App(): React.ReactElement {
   const [currentPage, setCurrentPage] = useState<Page>('calendar');
@@ -24,6 +25,8 @@ function App(): React.ReactElement {
         return <SettingsPage />;
       case 'analytics':
         return <AnalyticsPage />;
+      case 'timer':
+        return <TimerPage />;
       default:
         return <CalendarPage />;
     }

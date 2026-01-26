@@ -166,6 +166,26 @@ html, body, #root {
   color: var(--danger);
 }
 
+.task-tag-input {
+  width: 100%;
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.task-tag-input:focus {
+  border-color: var(--primary);
+}
+
+.task-tag-input::placeholder {
+  color: var(--text-muted);
+}
+
 .likert-scale {
   display: flex;
   gap: var(--spacing-sm);
@@ -190,6 +210,12 @@ html, body, #root {
 .rating-btn.selected {
   border-color: var(--primary);
   background: var(--primary);
+  color: white;
+}
+
+.rating-btn.mood.selected {
+  border-color: var(--success);
+  background: var(--success);
   color: white;
 }
 

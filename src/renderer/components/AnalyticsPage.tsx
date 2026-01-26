@@ -20,6 +20,13 @@ interface WordFrequency {
   count: number;
 }
 
+interface TaskTagStats {
+  taskTag: string;
+  total: number;
+  onTaskCount: number;
+  offTaskCount: number;
+}
+
 // Common words to filter out (keeping nouns, adjectives, and action verbs)
 const STOP_WORDS = new Set([
   // Articles, conjunctions, prepositions
@@ -59,14 +66,69 @@ const STOP_WORDS = new Set([
   'able', 'okay', 'yeah', 'yes', 'yep', 'nope', 'got', 'get', 'getting',
 ]);
 
+interface CommentDetail {
+  comment: string;
+  timestamp: string;
+  chunkName: string;
+  flowRating: number;
+  moodRating?: number;
+  onTask: boolean;
+  taskTag?: string;
+}
+
 function AnalyticsPage(): React.ReactElement {
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'all'>('all');
+  const [selectedWord, setSelectedWord] = useState<string | null>(null);
+  const [wordComments, setWordComments] = useState<CommentDetail[]>([]);
+  const [wordCategory, setWordCategory] = useState<string>('');
 
   useEffect(() => {
     loadCheckIns();
   }, []);
+
+  // Handle clicking on a word to show related comments
+  const handleWordClick = (word: string, category: string) => {
+    const matchingCheckIns = filteredCheckIns.filter(
+      (c) => c.comments && extractWords(c.comments).includes(word.toLowerCase())
+    );
+
+    const comments: CommentDetail[] = matchingCheckIns.map((c) => ({
+      comment: c.comments!,
+      timestamp: c.timestamp,
+      chunkName: c.chunkName || 'Unknown Chunk',
+      flowRating: c.flowRating,
+      moodRating: c.moodRating,
+      onTask: c.onTask,
+      taskTag: c.taskTag,
+    }));
+
+    // Sort by timestamp descending (most recent first)
+    comments.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    setSelectedWord(word);
+    setWordComments(comments);
+    setWordCategory(category);
+  };
+
+  const closeModal = () => {
+    setSelectedWord(null);
+    setWordComments([]);
+    setWordCategory('');
+  };
+
+  const formatTimestamp = (timestamp: string): string => {
+    const date = new Date(timestamp);
+    return date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  };
 
   const loadCheckIns = async () => {
     try {
@@ -169,6 +231,48 @@ function AnalyticsPage(): React.ReactElement {
   const mostNegativeFlow = useMemo(() =>
     [...chunkStats].filter(s => s.totalCheckIns >= 3 && s.lowFlowCount > 0).sort((a, b) => b.lowFlowRate - a.lowFlowRate),
     [chunkStats]
+  );
+
+  // Task tag stats - what tasks are being worked on when on-task vs off-task
+  const taskTagStats = useMemo((): TaskTagStats[] => {
+    const statsMap = new Map<string, { total: number; onTaskCount: number; offTaskCount: number }>();
+
+    for (const checkIn of filteredCheckIns) {
+      const tag = checkIn.taskTag?.trim();
+      if (!tag) continue;
+
+      if (!statsMap.has(tag)) {
+        statsMap.set(tag, { total: 0, onTaskCount: 0, offTaskCount: 0 });
+      }
+      const stats = statsMap.get(tag)!;
+      stats.total++;
+      if (checkIn.onTask) {
+        stats.onTaskCount++;
+      } else {
+        stats.offTaskCount++;
+      }
+    }
+
+    return Array.from(statsMap.entries())
+      .map(([taskTag, stats]) => ({
+        taskTag,
+        total: stats.total,
+        onTaskCount: stats.onTaskCount,
+        offTaskCount: stats.offTaskCount,
+      }))
+      .sort((a, b) => b.total - a.total);
+  }, [filteredCheckIns]);
+
+  // Top on-task tags (tags most commonly used when on-task)
+  const topOnTaskTags = useMemo(() =>
+    [...taskTagStats].filter(s => s.onTaskCount > 0).sort((a, b) => b.onTaskCount - a.onTaskCount).slice(0, 5),
+    [taskTagStats]
+  );
+
+  // Top off-task tags (tags most commonly used when off-task)
+  const topOffTaskTags = useMemo(() =>
+    [...taskTagStats].filter(s => s.offTaskCount > 0).sort((a, b) => b.offTaskCount - a.offTaskCount).slice(0, 5),
+    [taskTagStats]
   );
 
   // Extract words from comments
@@ -455,6 +559,59 @@ function AnalyticsPage(): React.ReactElement {
         </div>
       </div>
 
+      {/* Task Tag Analysis */}
+      {taskTagStats.length > 0 && (
+        <div className="analytics-grid">
+          <div className="analytics-section card">
+            <h2 className="section-title">Tasks When On-Task</h2>
+            <p className="section-description">What you're actually working on when staying on schedule</p>
+
+            {topOnTaskTags.length === 0 ? (
+              <p className="no-data">No task tags recorded for on-task check-ins yet</p>
+            ) : (
+              <div className="chunk-list">
+                {topOnTaskTags.map((stat) => (
+                  <div key={stat.taskTag} className="chunk-stat-row">
+                    <span className="chunk-name">{stat.taskTag}</span>
+                    <div className="stat-bar-container">
+                      <div
+                        className="stat-bar on-task"
+                        style={{ width: `${(stat.onTaskCount / Math.max(...topOnTaskTags.map(t => t.onTaskCount))) * 100}%` }}
+                      />
+                    </div>
+                    <span className="stat-value">{stat.onTaskCount}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="analytics-section card">
+            <h2 className="section-title">Tasks When Off-Task</h2>
+            <p className="section-description">What's distracting you from your scheduled work</p>
+
+            {topOffTaskTags.length === 0 ? (
+              <p className="no-data">No task tags recorded for off-task check-ins yet</p>
+            ) : (
+              <div className="chunk-list">
+                {topOffTaskTags.map((stat) => (
+                  <div key={stat.taskTag} className="chunk-stat-row">
+                    <span className="chunk-name">{stat.taskTag}</span>
+                    <div className="stat-bar-container">
+                      <div
+                        className="stat-bar off-task"
+                        style={{ width: `${(stat.offTaskCount / Math.max(...topOffTaskTags.map(t => t.offTaskCount))) * 100}%` }}
+                      />
+                    </div>
+                    <span className="stat-value">{stat.offTaskCount}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Word Analysis */}
       <div className="analytics-grid">
         <div className="analytics-section card">
@@ -469,7 +626,12 @@ function AnalyticsPage(): React.ReactElement {
               ) : (
                 <div className="word-cloud">
                   {wordAnalysis.highFlow.map((w) => (
-                    <span key={w.word} className="word-tag" style={{ fontSize: `${Math.min(18, 12 + w.count * 2)}px` }}>
+                    <span
+                      key={w.word}
+                      className="word-tag clickable"
+                      style={{ fontSize: `${Math.min(18, 12 + w.count * 2)}px` }}
+                      onClick={() => handleWordClick(w.word, 'High Flow')}
+                    >
                       {w.word} <span className="word-count">({w.count})</span>
                     </span>
                   ))}
@@ -484,7 +646,12 @@ function AnalyticsPage(): React.ReactElement {
               ) : (
                 <div className="word-cloud">
                   {wordAnalysis.lowFlow.map((w) => (
-                    <span key={w.word} className="word-tag" style={{ fontSize: `${Math.min(18, 12 + w.count * 2)}px` }}>
+                    <span
+                      key={w.word}
+                      className="word-tag clickable"
+                      style={{ fontSize: `${Math.min(18, 12 + w.count * 2)}px` }}
+                      onClick={() => handleWordClick(w.word, 'Low Flow')}
+                    >
                       {w.word} <span className="word-count">({w.count})</span>
                     </span>
                   ))}
@@ -499,7 +666,12 @@ function AnalyticsPage(): React.ReactElement {
               ) : (
                 <div className="word-cloud">
                   {wordAnalysis.onTask.map((w) => (
-                    <span key={w.word} className="word-tag" style={{ fontSize: `${Math.min(18, 12 + w.count * 2)}px` }}>
+                    <span
+                      key={w.word}
+                      className="word-tag clickable"
+                      style={{ fontSize: `${Math.min(18, 12 + w.count * 2)}px` }}
+                      onClick={() => handleWordClick(w.word, 'On Task')}
+                    >
                       {w.word} <span className="word-count">({w.count})</span>
                     </span>
                   ))}
@@ -514,7 +686,12 @@ function AnalyticsPage(): React.ReactElement {
               ) : (
                 <div className="word-cloud">
                   {wordAnalysis.offTask.map((w) => (
-                    <span key={w.word} className="word-tag" style={{ fontSize: `${Math.min(18, 12 + w.count * 2)}px` }}>
+                    <span
+                      key={w.word}
+                      className="word-tag clickable"
+                      style={{ fontSize: `${Math.min(18, 12 + w.count * 2)}px` }}
+                      onClick={() => handleWordClick(w.word, 'Off Task')}
+                    >
                       {w.word} <span className="word-count">({w.count})</span>
                     </span>
                   ))}
@@ -524,6 +701,50 @@ function AnalyticsPage(): React.ReactElement {
           </div>
         </div>
       </div>
+
+      {/* Modal for showing comments containing a word */}
+      {selectedWord && (
+        <div className="modal-overlay" onClick={closeModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">
+                Comments containing "{selectedWord}"
+                <span className="modal-category">{wordCategory}</span>
+              </h2>
+              <button className="modal-close" onClick={closeModal}>×</button>
+            </div>
+            <div className="modal-body">
+              {wordComments.length === 0 ? (
+                <p className="no-data">No comments found</p>
+              ) : (
+                <div className="comment-list">
+                  {wordComments.map((item, index) => (
+                    <div key={index} className="comment-item">
+                      <div className="comment-meta">
+                        <span className="comment-time">{formatTimestamp(item.timestamp)}</span>
+                        <span className="comment-chunk">{item.chunkName}</span>
+                      </div>
+                      <div className="comment-indicators">
+                        <span className={`indicator ${item.onTask ? 'on-task' : 'off-task'}`}>
+                          {item.onTask ? 'On Task' : 'Off Task'}
+                        </span>
+                        {item.taskTag && (
+                          <span className="task-tag-badge">{item.taskTag}</span>
+                        )}
+                        <span className="indicator flow">Flow: {item.flowRating}/5</span>
+                        {item.moodRating && (
+                          <span className="indicator mood">Mood: {item.moodRating}/5</span>
+                        )}
+                      </div>
+                      <p className="comment-text">{item.comment}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

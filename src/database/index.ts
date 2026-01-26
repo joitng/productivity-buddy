@@ -159,6 +159,20 @@ function initializeDatabase(): void {
   } catch {
     // Column already exists, ignore error
   }
+
+  // Migration: Add task_tag column to check_ins
+  try {
+    sqliteDb.exec(`ALTER TABLE check_ins ADD COLUMN task_tag TEXT;`);
+  } catch {
+    // Column already exists, ignore error
+  }
+
+  // Migration: Add mood_rating column to check_ins
+  try {
+    sqliteDb.exec(`ALTER TABLE check_ins ADD COLUMN mood_rating INTEGER NOT NULL DEFAULT 3;`);
+  } catch {
+    // Column already exists, ignore error
+  }
 }
 
 export function closeDatabase(): void {

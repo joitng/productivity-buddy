@@ -5,7 +5,9 @@ function CheckInPopup(): React.ReactElement {
   const [chunkName, setChunkName] = useState<string>('');
   const [showBreakReminder, setShowBreakReminder] = useState<boolean>(false);
   const [onTask, setOnTask] = useState<boolean | null>(null);
+  const [taskTag, setTaskTag] = useState<string>('');
   const [flowRating, setFlowRating] = useState<number | null>(null);
+  const [moodRating, setMoodRating] = useState<number | null>(null);
   const [comments, setComments] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -16,13 +18,15 @@ function CheckInPopup(): React.ReactElement {
       setShowBreakReminder(breakReminder);
       // Reset form
       setOnTask(null);
+      setTaskTag('');
       setFlowRating(null);
+      setMoodRating(null);
       setComments('');
     });
   }, []);
 
   const handleSubmit = async () => {
-    if (onTask === null || flowRating === null) return;
+    if (onTask === null || flowRating === null || moodRating === null) return;
 
     setSubmitting(true);
     try {
@@ -31,7 +35,9 @@ function CheckInPopup(): React.ReactElement {
         chunkName,
         timestamp: new Date().toISOString(),
         onTask,
+        taskTag: taskTag.trim() || undefined,
         flowRating,
+        moodRating,
         comments: comments.trim() || undefined,
       });
     } catch (error) {
@@ -48,7 +54,7 @@ function CheckInPopup(): React.ReactElement {
     await window.electronAPI.checkIn.close();
   };
 
-  const canSubmit = onTask !== null && flowRating !== null && !submitting;
+  const canSubmit = onTask !== null && flowRating !== null && moodRating !== null && !submitting;
 
   return (
     <div className="checkin-popup">
@@ -87,6 +93,15 @@ function CheckInPopup(): React.ReactElement {
               No
             </button>
           </div>
+          {onTask !== null && (
+            <input
+              type="text"
+              className="task-tag-input"
+              value={taskTag}
+              onChange={(e) => setTaskTag(e.target.value)}
+              placeholder={onTask ? "What task? (optional)" : "What are you working on instead?"}
+            />
+          )}
         </div>
 
         <div className="question-section">
@@ -105,6 +120,25 @@ function CheckInPopup(): React.ReactElement {
           <div className="likert-labels">
             <span>Not at all</span>
             <span>Very much</span>
+          </div>
+        </div>
+
+        <div className="question-section">
+          <h3 className="question">How positive is my mood?</h3>
+          <div className="likert-scale">
+            {[1, 2, 3, 4, 5].map((rating) => (
+              <button
+                key={rating}
+                className={`rating-btn mood ${moodRating === rating ? 'selected' : ''}`}
+                onClick={() => setMoodRating(rating)}
+              >
+                {rating}
+              </button>
+            ))}
+          </div>
+          <div className="likert-labels">
+            <span>Very negative</span>
+            <span>Very positive</span>
           </div>
         </div>
 

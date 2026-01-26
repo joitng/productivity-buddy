@@ -66,7 +66,9 @@ export interface CheckIn {
   chunkName: string;
   timestamp: string;
   onTask: boolean;
+  taskTag?: string; // What task the user is actually working on
   flowRating: number; // 1-5
+  moodRating: number; // 1-5
   comments?: string;
   createdAt: string;
 }

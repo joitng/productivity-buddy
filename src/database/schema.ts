@@ -52,7 +52,9 @@ export const checkIns = sqliteTable('check_ins', {
   chunkName: text('chunk_name').notNull(),
   timestamp: text('timestamp').notNull(),
   onTask: integer('on_task', { mode: 'boolean' }).notNull(),
+  taskTag: text('task_tag'), // What task user is actually working on
   flowRating: integer('flow_rating').notNull(), // 1-5
+  moodRating: integer('mood_rating').notNull().default(3), // 1-5
   comments: text('comments'),
   createdAt: text('created_at').notNull(),
 });

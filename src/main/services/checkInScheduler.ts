@@ -266,7 +266,7 @@ export function showCheckInPopup(chunkId: string, chunkName: string): void {
 
   checkInWindow = new BrowserWindow({
     width: 400,
-    height: 480,
+    height: 580,
     frame: false,
     alwaysOnTop: true,
     resizable: false,

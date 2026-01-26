@@ -94,6 +94,14 @@ const config: ForgeConfig = {
               js: './src/preload/index.ts',
             },
           },
+          {
+            html: './src/chunk-end-popup/index.html',
+            js: './src/chunk-end-popup/index.tsx',
+            name: 'chunk_end_window',
+            preload: {
+              js: './src/preload/index.ts',
+            },
+          },
         ],
       },
     }),

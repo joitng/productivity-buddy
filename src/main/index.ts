@@ -1,7 +1,8 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
+import { v4 as uuidv4 } from 'uuid';
 import { createMainWindow, getMainWindow } from './windows/mainWindow';
 import { registerDatabaseHandlers } from './ipc/databaseHandlers';
-import { getDatabase, closeDatabase } from '../database';
+import { getDatabase, closeDatabase, schema } from '../database';
 import { startAuthFlow, getAuthStatus, logout } from './services/googleAuth';
 import { syncCalendars, startAutoSync, stopAutoSync } from './services/googleCalendar';
 import {
@@ -9,6 +10,8 @@ import {
   closeCheckInPopup,
   snoozeCheckIn,
   clearAllScheduledCheckIns,
+  closeChunkEndPopup,
+  snoozeChunkEnd,
 } from './services/checkInScheduler';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -67,9 +70,6 @@ function registerGoogleHandlers(): void {
 
 function registerCheckInHandlers(): void {
   ipcMain.handle('checkin:submit', async (_, data) => {
-    const { getDatabase, schema } = await import('../database');
-    const { v4: uuidv4 } = await import('uuid');
-
     const db = getDatabase();
     const now = new Date().toISOString();
 
@@ -90,6 +90,15 @@ function registerCheckInHandlers(): void {
 
   ipcMain.handle('checkin:close', async () => {
     closeCheckInPopup();
+  });
+
+  // Chunk end notification handlers
+  ipcMain.handle('chunkend:dismiss', async () => {
+    closeChunkEndPopup();
+  });
+
+  ipcMain.handle('chunkend:snooze', async (_, minutes: number) => {
+    snoozeChunkEnd(minutes);
   });
 }
 

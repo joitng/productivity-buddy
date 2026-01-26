@@ -99,6 +99,15 @@ const electronAPI = {
       ipcRenderer.on('checkin:show', (_, chunkId, chunkName) => callback(chunkId, chunkName));
     },
   },
+
+  // Chunk end notification popup
+  chunkEnd: {
+    dismiss: (): Promise<void> => ipcRenderer.invoke('chunkend:dismiss'),
+    snooze: (minutes: number): Promise<void> => ipcRenderer.invoke('chunkend:snooze', minutes),
+    onShow: (callback: (chunkName: string) => void): void => {
+      ipcRenderer.on('chunkend:show', (_, chunkName) => callback(chunkName));
+    },
+  },
 };
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);

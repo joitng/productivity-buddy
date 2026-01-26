@@ -10,14 +10,27 @@ interface ScheduledCheckIn {
   timeout: NodeJS.Timeout;
 }
 
+interface ScheduledChunkEnd {
+  chunkId: string;
+  chunkName: string;
+  scheduledTime: Date;
+  timeout: NodeJS.Timeout;
+}
+
 let checkInWindow: BrowserWindow | null = null;
+let chunkEndWindow: BrowserWindow | null = null;
 let scheduledCheckIns: ScheduledCheckIn[] = [];
+let scheduledChunkEnds: ScheduledChunkEnd[] = [];
 let currentChunkId: string | null = null;
 let currentChunkName: string | null = null;
+let currentEndChunkName: string | null = null;
 let snoozeTimeout: NodeJS.Timeout | null = null;
+let chunkEndSnoozeTimeout: NodeJS.Timeout | null = null;
 
 declare const CHECKIN_WINDOW_WEBPACK_ENTRY: string;
 declare const CHECKIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
+declare const CHUNK_END_WINDOW_WEBPACK_ENTRY: string;
+declare const CHUNK_END_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
 
 export function scheduleCheckInsForToday(): void {
   // Clear existing scheduled check-ins
@@ -41,7 +54,15 @@ export function scheduleCheckInsForToday(): void {
   for (const chunk of chunks) {
     const recurrence = JSON.parse(chunk.recurrence) as RecurrenceRule;
 
-    // Check if chunk is active today
+    // Check if chunk is within its date range
+    if (chunk.startDate && todayStr < chunk.startDate) {
+      continue; // Chunk hasn't started yet
+    }
+    if (chunk.endDate && todayStr > chunk.endDate) {
+      continue; // Chunk has ended
+    }
+
+    // Check if chunk is active today based on recurrence pattern
     if (!isChunkActiveOnDate(recurrence, today)) {
       continue;
     }
@@ -101,6 +122,70 @@ export function scheduleCheckInsForToday(): void {
   }
 
   console.log(`Scheduled ${scheduledCheckIns.length} check-ins for today`);
+
+  // Schedule chunk end notifications
+  scheduleChunkEndNotifications(chunks, overrides, today, todayStr);
+}
+
+function scheduleChunkEndNotifications(
+  chunks: Array<{ id: string; name: string; startTime: string; endTime: string; recurrence: string; startDate: string | null; endDate: string | null }>,
+  overrides: Array<{ chunkId: string; date: string; action: string; modifiedName: string | null; modifiedStartTime: string | null; modifiedEndTime: string | null }>,
+  today: Date,
+  todayStr: string
+): void {
+  // Clear existing scheduled chunk ends
+  for (const chunkEnd of scheduledChunkEnds) {
+    clearTimeout(chunkEnd.timeout);
+  }
+  scheduledChunkEnds = [];
+
+  for (const chunk of chunks) {
+    const recurrence = JSON.parse(chunk.recurrence) as RecurrenceRule;
+
+    // Check if chunk is within its date range
+    if (chunk.startDate && todayStr < chunk.startDate) {
+      continue;
+    }
+    if (chunk.endDate && todayStr > chunk.endDate) {
+      continue;
+    }
+
+    // Check if chunk is active today based on recurrence pattern
+    if (!isChunkActiveOnDate(recurrence, today)) {
+      continue;
+    }
+
+    // Check for overrides
+    const override = overrides.find((o) => o.chunkId === chunk.id);
+    if (override?.action === 'skip') {
+      continue;
+    }
+
+    // Get effective end time and name
+    const endTime = override?.modifiedEndTime || chunk.endTime;
+    const name = override?.modifiedName || chunk.name;
+
+    // Calculate end time for today
+    const [endHour, endMin] = endTime.split(':').map(Number);
+    const endDate = new Date(today);
+    endDate.setHours(endHour, endMin, 0, 0);
+
+    // Only schedule if end time is in the future
+    if (endDate > new Date()) {
+      const timeout = setTimeout(() => {
+        showChunkEndPopup(chunk.id, name);
+      }, endDate.getTime() - Date.now());
+
+      scheduledChunkEnds.push({
+        chunkId: chunk.id,
+        chunkName: name,
+        scheduledTime: endDate,
+        timeout,
+      });
+    }
+  }
+
+  console.log(`Scheduled ${scheduledChunkEnds.length} chunk end notifications for today`);
 }
 
 function calculateCheckInTimes(startTime: string, endTime: string, date: Date): Date[] {
@@ -211,6 +296,63 @@ export function closeCheckInPopup(): void {
   checkInWindow = null;
 }
 
+export function showChunkEndPopup(chunkId: string, chunkName: string): void {
+  if (chunkEndWindow && !chunkEndWindow.isDestroyed()) {
+    chunkEndWindow.focus();
+    chunkEndWindow.webContents.send('chunkend:show', chunkName);
+    return;
+  }
+
+  currentEndChunkName = chunkName;
+
+  chunkEndWindow = new BrowserWindow({
+    width: 350,
+    height: 250,
+    frame: false,
+    alwaysOnTop: true,
+    resizable: false,
+    skipTaskbar: true,
+    webPreferences: {
+      preload: CHUNK_END_WINDOW_PRELOAD_WEBPACK_ENTRY,
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  chunkEndWindow.loadURL(CHUNK_END_WINDOW_WEBPACK_ENTRY);
+
+  // Center on screen
+  chunkEndWindow.center();
+
+  chunkEndWindow.webContents.on('did-finish-load', () => {
+    chunkEndWindow?.webContents.send('chunkend:show', chunkName);
+  });
+
+  chunkEndWindow.on('closed', () => {
+    chunkEndWindow = null;
+    currentEndChunkName = null;
+  });
+}
+
+export function closeChunkEndPopup(): void {
+  if (chunkEndWindow && !chunkEndWindow.isDestroyed()) {
+    chunkEndWindow.close();
+  }
+  chunkEndWindow = null;
+}
+
+export function snoozeChunkEnd(minutes: number = 5): void {
+  closeChunkEndPopup();
+
+  if (currentEndChunkName) {
+    const chunkName = currentEndChunkName;
+
+    chunkEndSnoozeTimeout = setTimeout(() => {
+      showChunkEndPopup('', chunkName);
+    }, minutes * 60 * 1000);
+  }
+}
+
 export function snoozeCheckIn(minutes: number = 5): void {
   closeCheckInPopup();
 
@@ -230,9 +372,19 @@ export function clearAllScheduledCheckIns(): void {
   }
   scheduledCheckIns = [];
 
+  for (const chunkEnd of scheduledChunkEnds) {
+    clearTimeout(chunkEnd.timeout);
+  }
+  scheduledChunkEnds = [];
+
   if (snoozeTimeout) {
     clearTimeout(snoozeTimeout);
     snoozeTimeout = null;
+  }
+
+  if (chunkEndSnoozeTimeout) {
+    clearTimeout(chunkEndSnoozeTimeout);
+    chunkEndSnoozeTimeout = null;
   }
 }
 

@@ -350,16 +350,21 @@ function CalendarPage(): React.ReactElement {
         await window.electronAPI.chunkOverrides.delete(existingOverride.id);
       }
 
-      // Create a new override for this specific date
+      // Create a skip override on the parent chunk so it doesn't show on this date
       await window.electronAPI.chunkOverrides.create({
         chunkId: editingChunk.id,
         date: editingDate,
-        action: 'modify',
-        modifiedName: data.name,
-        modifiedStartTime: data.startTime,
-        modifiedEndTime: data.endTime,
-        modifiedColor: data.color,
+        action: 'skip',
       });
+
+      // Create a new standalone chunk for this specific date (detached from parent)
+      await window.electronAPI.chunks.create({
+        ...data,
+        recurrence: { type: 'once', specificDate: editingDate },
+        startDate: undefined,
+        endDate: undefined,
+      });
+
       setShowChunkEditor(false);
       setNewChunkSlot(null);
       setEditingChunk(null);
@@ -367,7 +372,7 @@ function CalendarPage(): React.ReactElement {
       await loadData();
       await window.electronAPI.checkIn.refreshSchedule();
     } catch (error) {
-      console.error('Failed to create override:', error);
+      console.error('Failed to create standalone occurrence:', error);
     }
   };
 
@@ -425,7 +430,11 @@ function CalendarPage(): React.ReactElement {
 
     // Handle chunk events - show edit scope dialog
     if (event.resource?.type === 'chunk') {
-      const chunk = event.resource.originalData as ScheduledChunk;
+      const chunkFromEvent = event.resource.originalData as ScheduledChunk;
+      // Look up fresh chunk data from state to avoid stale data issues
+      const chunk = chunks.find(c => c.id === chunkFromEvent.id);
+      if (!chunk) return;
+
       const dateStr = format(event.start, 'yyyy-MM-dd');
       setEditingChunk(chunk);
       setEditingDate(dateStr);

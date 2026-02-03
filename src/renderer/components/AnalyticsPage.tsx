@@ -152,22 +152,27 @@ function AnalyticsPage(): React.ReactElement {
     const statsMap = new Map<string, { total: number; onTaskCount: number; offTaskCount: number; flowRatings: number[]; lowFlowCount: number }>();
 
     for (const checkIn of filteredCheckIns) {
-      const tag = checkIn.taskTag?.trim();
-      if (!tag) continue;
+      const tagString = checkIn.taskTag?.trim();
+      if (!tagString) continue;
 
-      if (!statsMap.has(tag)) {
-        statsMap.set(tag, { total: 0, onTaskCount: 0, offTaskCount: 0, flowRatings: [], lowFlowCount: 0 });
-      }
-      const stats = statsMap.get(tag)!;
-      stats.total++;
-      if (checkIn.onTask) {
-        stats.onTaskCount++;
-      } else {
-        stats.offTaskCount++;
-      }
-      stats.flowRatings.push(checkIn.flowRating);
-      if (checkIn.flowRating <= 2) {
-        stats.lowFlowCount++;
+      // Split comma-separated tags and process each individually
+      const tags = tagString.split(',').map(t => t.trim()).filter(t => t);
+
+      for (const tag of tags) {
+        if (!statsMap.has(tag)) {
+          statsMap.set(tag, { total: 0, onTaskCount: 0, offTaskCount: 0, flowRatings: [], lowFlowCount: 0 });
+        }
+        const stats = statsMap.get(tag)!;
+        stats.total++;
+        if (checkIn.onTask) {
+          stats.onTaskCount++;
+        } else {
+          stats.offTaskCount++;
+        }
+        stats.flowRatings.push(checkIn.flowRating);
+        if (checkIn.flowRating <= 2) {
+          stats.lowFlowCount++;
+        }
       }
     }
 

@@ -2,7 +2,7 @@ import { ipcMain } from 'electron';
 import { v4 as uuidv4 } from 'uuid';
 import { eq, and, gte, lte } from 'drizzle-orm';
 import { getDatabase, schema } from '../../database';
-import type { ScheduledChunk, ChunkOverride, DayLabel, DayLabelOverride, CheckIn, RecurrenceRule } from '../../shared/types';
+import type { ScheduledChunk, ChunkOverride, DayLabel, DayLabelOverride, CheckIn, RecurrenceRule, DopamineMenuItem, DopamineMenuCategory } from '../../shared/types';
 
 export function registerDatabaseHandlers(): void {
   const db = getDatabase();
@@ -181,7 +181,11 @@ export function registerDatabaseHandlers(): void {
     const tags = new Set<string>();
     for (const checkIn of checkIns) {
       if (checkIn.taskTag && checkIn.taskTag.trim()) {
-        tags.add(checkIn.taskTag.trim());
+        // Split by comma to handle multiple tags in a single entry
+        const individualTags = checkIn.taskTag.split(',').map(t => t.trim()).filter(t => t);
+        for (const tag of individualTags) {
+          tags.add(tag);
+        }
       }
     }
     return Array.from(tags).sort();
@@ -229,5 +233,29 @@ export function registerDatabaseHandlers(): void {
       .values({ key, value })
       .onConflictDoUpdate({ target: schema.appSettings.key, set: { value } })
       .run();
+  });
+
+  // Dopamine Menu Items
+  ipcMain.handle('db:dopamine-menu:getAll', async () => {
+    return db.select().from(schema.dopamineMenuItems).all();
+  });
+
+  ipcMain.handle('db:dopamine-menu:getByCategory', async (_, category: DopamineMenuCategory) => {
+    return db.select().from(schema.dopamineMenuItems).where(eq(schema.dopamineMenuItems.category, category)).all();
+  });
+
+  ipcMain.handle('db:dopamine-menu:create', async (_, item: Omit<DopamineMenuItem, 'id' | 'createdAt'>) => {
+    const now = new Date().toISOString();
+    const newItem = {
+      id: uuidv4(),
+      ...item,
+      createdAt: now,
+    };
+    db.insert(schema.dopamineMenuItems).values(newItem).run();
+    return newItem;
+  });
+
+  ipcMain.handle('db:dopamine-menu:delete', async (_, id: string) => {
+    db.delete(schema.dopamineMenuItems).where(eq(schema.dopamineMenuItems.id, id)).run();
   });
 }

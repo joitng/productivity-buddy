@@ -2,6 +2,18 @@ import React, { useState, useEffect } from 'react';
 import type { SyncedCalendar } from '../../../shared/types';
 import './SettingsPage.css';
 
+interface ScheduledNotification {
+  chunkId: string;
+  chunkName: string;
+  scheduledTime: string;
+}
+
+interface ScheduledNotifications {
+  checkIns: ScheduledNotification[];
+  chunkEnds: ScheduledNotification[];
+  activeSnoozes: { checkIn: boolean; chunkEnd: boolean };
+}
+
 function SettingsPage(): React.ReactElement {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
@@ -9,6 +21,8 @@ function SettingsPage(): React.ReactElement {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  const [scheduledNotifications, setScheduledNotifications] = useState<ScheduledNotifications | null>(null);
+  const [showDebug, setShowDebug] = useState(false);
 
   const checkAuthStatus = async () => {
     try {
@@ -89,6 +103,24 @@ function SettingsPage(): React.ReactElement {
     } catch (error) {
       console.error('Failed to toggle calendar:', error);
     }
+  };
+
+  const loadScheduledNotifications = async () => {
+    try {
+      const data = await window.electronAPI.debug.getScheduledNotifications();
+      setScheduledNotifications(data);
+    } catch (error) {
+      console.error('Failed to load scheduled notifications:', error);
+    }
+  };
+
+  const formatScheduledTime = (isoString: string): string => {
+    const date = new Date(isoString);
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
   };
 
   if (loading) {
@@ -196,6 +228,73 @@ function SettingsPage(): React.ReactElement {
             <li>Set environment variables GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET</li>
           </ol>
         </div>
+      </section>
+
+      <section className="settings-section card">
+        <h2 className="section-title">Debug</h2>
+        <button
+          className="btn btn-secondary"
+          onClick={() => {
+            setShowDebug(!showDebug);
+            if (!showDebug) {
+              loadScheduledNotifications();
+            }
+          }}
+        >
+          {showDebug ? 'Hide' : 'Show'} Scheduled Notifications
+        </button>
+
+        {showDebug && scheduledNotifications && (
+          <div className="debug-info">
+            <div className="debug-section">
+              <h3>Scheduled Check-ins ({scheduledNotifications.checkIns.length})</h3>
+              {scheduledNotifications.checkIns.length === 0 ? (
+                <p className="text-secondary">No check-ins scheduled</p>
+              ) : (
+                <ul className="debug-list">
+                  {scheduledNotifications.checkIns.map((item, i) => (
+                    <li key={i}>
+                      <strong>{item.chunkName}</strong> at {formatScheduledTime(item.scheduledTime)}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <div className="debug-section">
+              <h3>Scheduled Chunk End Notifications ({scheduledNotifications.chunkEnds.length})</h3>
+              {scheduledNotifications.chunkEnds.length === 0 ? (
+                <p className="text-secondary">No chunk end notifications scheduled</p>
+              ) : (
+                <ul className="debug-list">
+                  {scheduledNotifications.chunkEnds.map((item, i) => (
+                    <li key={i}>
+                      <strong>{item.chunkName}</strong> ends at {formatScheduledTime(item.scheduledTime)}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <div className="debug-section">
+              <h3>Active Snoozes</h3>
+              <p className="text-secondary">
+                Check-in snooze: {scheduledNotifications.activeSnoozes.checkIn ? 'Yes' : 'No'}
+              </p>
+              <p className="text-secondary">
+                Chunk end snooze: {scheduledNotifications.activeSnoozes.chunkEnd ? 'Yes' : 'No'}
+              </p>
+            </div>
+
+            <button
+              className="btn btn-ghost"
+              onClick={loadScheduledNotifications}
+              style={{ marginTop: '12px' }}
+            >
+              Refresh
+            </button>
+          </div>
+        )}
       </section>
     </div>
   );

@@ -1,7 +1,7 @@
 import React from 'react';
 import './Sidebar.css';
 
-type Page = 'calendar' | 'chunks' | 'labels' | 'settings' | 'analytics' | 'timer';
+type Page = 'calendar' | 'chunks' | 'labels' | 'settings' | 'analytics' | 'timer' | 'dopamine-menu';
 
 interface SidebarProps {
   currentPage: Page;
@@ -13,6 +13,7 @@ const navItems: { id: Page; label: string; icon: string }[] = [
   { id: 'chunks', label: 'Time Chunks', icon: 'Chn' },
   { id: 'labels', label: 'Day Labels', icon: 'Lbl' },
   { id: 'timer', label: 'Timer', icon: 'Tmr' },
+  { id: 'dopamine-menu', label: 'Dopamine Menu', icon: 'Dop' },
   { id: 'analytics', label: 'Analytics', icon: 'Ana' },
   { id: 'settings', label: 'Settings', icon: 'Set' },
 ];

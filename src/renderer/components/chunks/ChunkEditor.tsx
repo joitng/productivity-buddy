@@ -30,7 +30,7 @@ function ChunkEditor({ chunk, onSave, onCancel, specificDate, hideRecurrence }: 
   const [endTime, setEndTime] = useState(chunk?.endTime || '12:00');
   const [color, setColor] = useState(chunk?.color || COLORS[0]);
   const [recurrence, setRecurrence] = useState<RecurrenceRule>(
-    chunk?.recurrence || { type: 'weekly', daysOfWeek: [1, 2, 3, 4, 5] }
+    chunk?.recurrence || { type: 'once', specificDate: specificDate || new Date().toISOString().split('T')[0] }
   );
   const [startDate, setStartDate] = useState(chunk?.startDate || '');
   const [endDate, setEndDate] = useState(chunk?.endDate || '');

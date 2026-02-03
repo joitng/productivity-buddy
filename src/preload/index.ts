@@ -7,6 +7,8 @@ import type {
   CheckIn,
   GoogleCalendarEvent,
   SyncedCalendar,
+  DopamineMenuItem,
+  DopamineMenuCategory,
 } from '../shared/types';
 
 const electronAPI = {
@@ -110,6 +112,51 @@ const electronAPI = {
     onShow: (callback: (chunkName: string) => void): void => {
       ipcRenderer.on('chunkend:show', (_, chunkName) => callback(chunkName));
     },
+  },
+
+  // Timer end notification popup
+  timerEnd: {
+    show: (durationMinutes: number): Promise<void> => ipcRenderer.invoke('timerend:show', durationMinutes),
+    dismiss: (): Promise<void> => ipcRenderer.invoke('timerend:dismiss'),
+    restart: (): Promise<number> => ipcRenderer.invoke('timerend:restart'),
+    onShow: (callback: (durationMinutes: number) => void): void => {
+      ipcRenderer.on('timerend:show', (_, durationMinutes) => callback(durationMinutes));
+    },
+  },
+
+  // Wind-down end notification popup (for delayed timer)
+  winddownEnd: {
+    dismiss: (): Promise<void> => ipcRenderer.invoke('winddownend:dismiss'),
+    startTimer: (): Promise<void> => ipcRenderer.invoke('winddownend:startTimer'),
+    onShow: (callback: (timerMinutes: number) => void): void => {
+      ipcRenderer.on('winddownend:show', (_, timerMinutes) => callback(timerMinutes));
+    },
+  },
+
+  // Timer control (for starting timer from main process)
+  timer: {
+    onStart: (callback: (minutes: number) => void): void => {
+      ipcRenderer.on('timer:start', (_, minutes) => callback(minutes));
+    },
+  },
+
+  // Debug utilities
+  debug: {
+    getScheduledNotifications: (): Promise<{
+      checkIns: Array<{ chunkId: string; chunkName: string; scheduledTime: string }>;
+      chunkEnds: Array<{ chunkId: string; chunkName: string; scheduledTime: string }>;
+      activeSnoozes: { checkIn: boolean; chunkEnd: boolean };
+    }> => ipcRenderer.invoke('debug:getScheduledNotifications'),
+  },
+
+  // Dopamine Menu
+  dopamineMenu: {
+    getAll: (): Promise<DopamineMenuItem[]> => ipcRenderer.invoke('db:dopamine-menu:getAll'),
+    getByCategory: (category: DopamineMenuCategory): Promise<DopamineMenuItem[]> =>
+      ipcRenderer.invoke('db:dopamine-menu:getByCategory', category),
+    create: (item: Omit<DopamineMenuItem, 'id' | 'createdAt'>): Promise<DopamineMenuItem> =>
+      ipcRenderer.invoke('db:dopamine-menu:create', item),
+    delete: (id: string): Promise<void> => ipcRenderer.invoke('db:dopamine-menu:delete', id),
   },
 };
 

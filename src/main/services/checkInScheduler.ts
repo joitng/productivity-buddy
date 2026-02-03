@@ -19,19 +19,29 @@ interface ScheduledChunkEnd {
 
 let checkInWindow: BrowserWindow | null = null;
 let chunkEndWindow: BrowserWindow | null = null;
+let timerEndWindow: BrowserWindow | null = null;
 let scheduledCheckIns: ScheduledCheckIn[] = [];
 let scheduledChunkEnds: ScheduledChunkEnd[] = [];
 let currentChunkId: string | null = null;
 let currentChunkName: string | null = null;
 let currentEndChunkName: string | null = null;
+let currentTimerDuration: number = 0;
 let snoozeTimeout: NodeJS.Timeout | null = null;
 let chunkEndSnoozeTimeout: NodeJS.Timeout | null = null;
 let checkInCounter: number = 0; // Track check-in count for break reminders
+let delayedTimerTimeout: NodeJS.Timeout | null = null;
+let pendingTimerDuration: number = 0; // Timer duration to start after wind-down
 
 declare const CHECKIN_WINDOW_WEBPACK_ENTRY: string;
 declare const CHECKIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
 declare const CHUNK_END_WINDOW_WEBPACK_ENTRY: string;
 declare const CHUNK_END_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
+declare const TIMER_END_WINDOW_WEBPACK_ENTRY: string;
+declare const TIMER_END_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
+declare const WINDDOWN_END_WINDOW_WEBPACK_ENTRY: string;
+declare const WINDDOWN_END_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
+
+let winddownEndWindow: BrowserWindow | null = null;
 
 export function scheduleCheckInsForToday(): void {
   // Clear existing scheduled check-ins
@@ -399,4 +409,144 @@ export function getScheduledCheckIns(): { chunkId: string; chunkName: string; sc
     chunkName,
     scheduledTime,
   }));
+}
+
+export function getScheduledChunkEnds(): { chunkId: string; chunkName: string; scheduledTime: Date }[] {
+  return scheduledChunkEnds.map(({ chunkId, chunkName, scheduledTime }) => ({
+    chunkId,
+    chunkName,
+    scheduledTime,
+  }));
+}
+
+export function hasActiveSnooze(): { checkIn: boolean; chunkEnd: boolean } {
+  return {
+    checkIn: snoozeTimeout !== null,
+    chunkEnd: chunkEndSnoozeTimeout !== null,
+  };
+}
+
+// Timer end popup functions
+export function showTimerEndPopup(durationMinutes: number): void {
+  if (timerEndWindow && !timerEndWindow.isDestroyed()) {
+    timerEndWindow.focus();
+    timerEndWindow.webContents.send('timerend:show', durationMinutes);
+    return;
+  }
+
+  currentTimerDuration = durationMinutes;
+
+  timerEndWindow = new BrowserWindow({
+    width: 350,
+    height: 250,
+    frame: false,
+    alwaysOnTop: true,
+    resizable: false,
+    skipTaskbar: true,
+    webPreferences: {
+      preload: TIMER_END_WINDOW_PRELOAD_WEBPACK_ENTRY,
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  timerEndWindow.loadURL(TIMER_END_WINDOW_WEBPACK_ENTRY);
+
+  // Center on screen
+  timerEndWindow.center();
+
+  timerEndWindow.webContents.on('did-finish-load', () => {
+    timerEndWindow?.webContents.send('timerend:show', durationMinutes);
+  });
+
+  timerEndWindow.on('closed', () => {
+    timerEndWindow = null;
+    currentTimerDuration = 0;
+  });
+}
+
+export function closeTimerEndPopup(): void {
+  if (timerEndWindow && !timerEndWindow.isDestroyed()) {
+    timerEndWindow.close();
+  }
+  timerEndWindow = null;
+}
+
+export function getTimerDuration(): number {
+  return currentTimerDuration;
+}
+
+// Delayed timer functions (for dopamine menu wind-down)
+export function scheduleDelayedTimer(timerMinutes: number, winddownMinutes: number = 3): void {
+  // Clear any existing delayed timer
+  if (delayedTimerTimeout) {
+    clearTimeout(delayedTimerTimeout);
+    delayedTimerTimeout = null;
+  }
+
+  pendingTimerDuration = timerMinutes;
+
+  // Schedule the wind-down end notification
+  delayedTimerTimeout = setTimeout(() => {
+    showWinddownEndPopup(timerMinutes);
+    delayedTimerTimeout = null;
+  }, winddownMinutes * 60 * 1000);
+
+  console.log(`Scheduled delayed timer: ${timerMinutes} min timer will start after ${winddownMinutes} min wind-down`);
+}
+
+export function showWinddownEndPopup(timerMinutes: number): void {
+  if (winddownEndWindow && !winddownEndWindow.isDestroyed()) {
+    winddownEndWindow.focus();
+    winddownEndWindow.webContents.send('winddownend:show', timerMinutes);
+    return;
+  }
+
+  pendingTimerDuration = timerMinutes;
+
+  winddownEndWindow = new BrowserWindow({
+    width: 350,
+    height: 280,
+    frame: false,
+    alwaysOnTop: true,
+    resizable: false,
+    skipTaskbar: true,
+    webPreferences: {
+      preload: WINDDOWN_END_WINDOW_PRELOAD_WEBPACK_ENTRY,
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  winddownEndWindow.loadURL(WINDDOWN_END_WINDOW_WEBPACK_ENTRY);
+
+  // Center on screen
+  winddownEndWindow.center();
+
+  winddownEndWindow.webContents.on('did-finish-load', () => {
+    winddownEndWindow?.webContents.send('winddownend:show', timerMinutes);
+  });
+
+  winddownEndWindow.on('closed', () => {
+    winddownEndWindow = null;
+  });
+}
+
+export function closeWinddownEndPopup(): void {
+  if (winddownEndWindow && !winddownEndWindow.isDestroyed()) {
+    winddownEndWindow.close();
+  }
+  winddownEndWindow = null;
+}
+
+export function getPendingTimerDuration(): number {
+  return pendingTimerDuration;
+}
+
+export function clearDelayedTimer(): void {
+  if (delayedTimerTimeout) {
+    clearTimeout(delayedTimerTimeout);
+    delayedTimerTimeout = null;
+  }
+  pendingTimerDuration = 0;
 }

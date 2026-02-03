@@ -70,6 +70,20 @@ export interface CheckIn {
   flowRating: number; // 1-5
   moodRating: number; // 1-5
   comments?: string;
+  // Off-task follow-up fields
+  wantsDopamineBoost?: boolean; // null/undefined if on-task
+  selectedSide?: string; // Selected dopamine menu side item
+  delayedTimerMinutes?: number; // 10, 15, or 25 (null if not selected)
+  createdAt: string;
+}
+
+// Dopamine Menu
+export type DopamineMenuCategory = 'appetizers' | 'mains' | 'sides' | 'desserts';
+
+export interface DopamineMenuItem {
+  id: string;
+  category: DopamineMenuCategory;
+  name: string;
   createdAt: string;
 }
 

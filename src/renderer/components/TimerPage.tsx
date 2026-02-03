@@ -1,64 +1,24 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
+import { useTimer } from '../context/TimerContext';
 import './TimerPage.css';
 
 function TimerPage(): React.ReactElement {
-  const [totalSeconds, setTotalSeconds] = useState(5 * 60); // Default 5 minutes
-  const [remainingSeconds, setRemainingSeconds] = useState(5 * 60);
-  const [isRunning, setIsRunning] = useState(false);
-  const [isComplete, setIsComplete] = useState(false);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    if (isRunning && remainingSeconds > 0) {
-      intervalRef.current = setInterval(() => {
-        setRemainingSeconds((prev) => {
-          if (prev <= 1) {
-            setIsRunning(false);
-            setIsComplete(true);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [isRunning]);
+  const {
+    totalSeconds,
+    remainingSeconds,
+    isRunning,
+    isComplete,
+    setTotalSeconds,
+    start,
+    pause,
+    reset,
+    adjustTime,
+  } = useTimer();
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const adjustTime = (deltaMinutes: number) => {
-    if (isRunning) return;
-
-    const newTotal = Math.max(60, totalSeconds + deltaMinutes * 60); // Minimum 1 minute
-    setTotalSeconds(newTotal);
-    setRemainingSeconds(newTotal);
-    setIsComplete(false);
-  };
-
-  const handleStart = () => {
-    if (remainingSeconds > 0) {
-      setIsRunning(true);
-      setIsComplete(false);
-    }
-  };
-
-  const handlePause = () => {
-    setIsRunning(false);
-  };
-
-  const handleReset = () => {
-    setIsRunning(false);
-    setRemainingSeconds(totalSeconds);
-    setIsComplete(false);
   };
 
   const progressPercent = totalSeconds > 0 ? ((totalSeconds - remainingSeconds) / totalSeconds) * 100 : 0;
@@ -132,15 +92,15 @@ function TimerPage(): React.ReactElement {
 
         <div className="timer-controls">
           {!isRunning ? (
-            <button className="control-btn start" onClick={handleStart} disabled={remainingSeconds === 0}>
+            <button className="control-btn start" onClick={start} disabled={remainingSeconds === 0}>
               {remainingSeconds === totalSeconds ? 'Start' : 'Resume'}
             </button>
           ) : (
-            <button className="control-btn pause" onClick={handlePause}>
+            <button className="control-btn pause" onClick={pause}>
               Pause
             </button>
           )}
-          <button className="control-btn reset" onClick={handleReset}>
+          <button className="control-btn reset" onClick={reset}>
             Reset
           </button>
         </div>
@@ -156,8 +116,6 @@ function TimerPage(): React.ReactElement {
               onClick={() => {
                 if (!isRunning) {
                   setTotalSeconds(mins * 60);
-                  setRemainingSeconds(mins * 60);
-                  setIsComplete(false);
                 }
               }}
               disabled={isRunning}

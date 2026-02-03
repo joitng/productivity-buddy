@@ -63,6 +63,14 @@ const config: ForgeConfig = {
           copyRecursiveSync(srcPath, destPath);
         }
       }
+
+      // Copy .env file to resources
+      const envSrc = path.join(__dirname, '.env');
+      const envDest = path.join(resourcesPath, '.env');
+      if (fs.existsSync(envSrc)) {
+        console.log('Copying .env file');
+        fs.copyFileSync(envSrc, envDest);
+      }
     },
   },
   makers: [
@@ -98,6 +106,22 @@ const config: ForgeConfig = {
             html: './src/chunk-end-popup/index.html',
             js: './src/chunk-end-popup/index.tsx',
             name: 'chunk_end_window',
+            preload: {
+              js: './src/preload/index.ts',
+            },
+          },
+          {
+            html: './src/timer-end-popup/index.html',
+            js: './src/timer-end-popup/index.tsx',
+            name: 'timer_end_window',
+            preload: {
+              js: './src/preload/index.ts',
+            },
+          },
+          {
+            html: './src/winddown-end-popup/index.html',
+            js: './src/winddown-end-popup/index.tsx',
+            name: 'winddown_end_window',
             preload: {
               js: './src/preload/index.ts',
             },

@@ -56,6 +56,18 @@ export const checkIns = sqliteTable('check_ins', {
   flowRating: integer('flow_rating').notNull(), // 1-5
   moodRating: integer('mood_rating').notNull().default(3), // 1-5
   comments: text('comments'),
+  // Off-task follow-up fields
+  wantsDopamineBoost: integer('wants_dopamine_boost', { mode: 'boolean' }), // null if on-task
+  selectedSide: text('selected_side'), // Selected dopamine menu side item
+  delayedTimerMinutes: integer('delayed_timer_minutes'), // 10, 15, or 25 (null if not selected)
+  createdAt: text('created_at').notNull(),
+});
+
+// Dopamine Menu Items
+export const dopamineMenuItems = sqliteTable('dopamine_menu_items', {
+  id: text('id').primaryKey(),
+  category: text('category').notNull(), // 'appetizers' | 'mains' | 'sides' | 'desserts'
+  name: text('name').notNull(),
   createdAt: text('created_at').notNull(),
 });
 

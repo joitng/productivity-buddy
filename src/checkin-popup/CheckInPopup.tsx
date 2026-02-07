@@ -18,25 +18,34 @@ function CheckInPopup(): React.ReactElement {
   const tagInputRef = useRef<HTMLInputElement>(null);
 
   // Page 2 (off-task follow-up) state
-  const [currentPage, setCurrentPage] = useState<1 | 2>(1);
+  const [currentPage, setCurrentPage] = useState<1 | 2 | 3>(1);
   const [wantsDopamineBoost, setWantsDopamineBoost] = useState<boolean | null>(null);
   const [sideItems, setSideItems] = useState<DopamineMenuItem[]>([]);
   const [selectedSide, setSelectedSide] = useState<string | null>(null);
   const [delayedTimerMinutes, setDelayedTimerMinutes] = useState<number | null>(null);
+
+  // Page 3 (continuing/transitioning) state
+  const [isContinuing, setIsContinuing] = useState<boolean | null>(null);
+  const [nextTask, setNextTask] = useState<string>('');
 
   useEffect(() => {
     // Load existing tags and side items
     window.electronAPI.checkIns.getUniqueTags().then(setExistingTags);
     window.electronAPI.dopamineMenu.getByCategory('sides').then(setSideItems);
 
-    window.electronAPI.checkIn.onShow((id, name, breakReminder) => {
+    window.electronAPI.checkIn.onShow((id, name, breakReminder, currentTask) => {
       setChunkId(id);
       setChunkName(name);
       setShowBreakReminder(breakReminder);
       // Reset form
       setCurrentPage(1);
       setOnTask(null);
-      setTaskTags([]);
+      // Pre-fill task tag with current task if available
+      if (currentTask) {
+        setTaskTags([currentTask]);
+      } else {
+        setTaskTags([]);
+      }
       setTagInput('');
       setFlowRating(null);
       setMoodRating(null);
@@ -47,6 +56,9 @@ function CheckInPopup(): React.ReactElement {
       setWantsDopamineBoost(null);
       setSelectedSide(null);
       setDelayedTimerMinutes(null);
+      // Reset page 3 state
+      setIsContinuing(null);
+      setNextTask('');
       // Refresh tags and side items in case new ones were added
       window.electronAPI.checkIns.getUniqueTags().then(setExistingTags);
       window.electronAPI.dopamineMenu.getByCategory('sides').then(setSideItems);
@@ -147,7 +159,12 @@ function CheckInPopup(): React.ReactElement {
   };
 
   const handleBack = () => {
-    setCurrentPage(1);
+    if (currentPage === 3) {
+      // Go back to page 2 if off-task, otherwise page 1
+      setCurrentPage(onTask === false ? 2 : 1);
+    } else {
+      setCurrentPage(1);
+    }
   };
 
   const handleSubmit = async () => {
@@ -159,6 +176,21 @@ function CheckInPopup(): React.ReactElement {
       return;
     }
 
+    // If on-task and on page 1, go to page 3 (continuing/transitioning)
+    if (onTask === true && currentPage === 1) {
+      setCurrentPage(3);
+      return;
+    }
+
+    // If on page 2 (off-task follow-up), go to page 3
+    if (currentPage === 2) {
+      setCurrentPage(3);
+      return;
+    }
+
+    // Page 3: Final submit
+    if (isContinuing === null) return;
+
     setSubmitting(true);
     try {
       // Combine tags into comma-separated string
@@ -167,6 +199,9 @@ function CheckInPopup(): React.ReactElement {
         allTags.push(tagInput.trim());
       }
       const taskTagString = allTags.join(', ') || undefined;
+
+      // Determine the next task to save
+      const nextTaskToSave = isContinuing ? taskTagString : (nextTask.trim() || undefined);
 
       await window.electronAPI.checkIn.submit({
         chunkId,
@@ -181,6 +216,8 @@ function CheckInPopup(): React.ReactElement {
         wantsDopamineBoost: onTask === false ? wantsDopamineBoost ?? undefined : undefined,
         selectedSide: onTask === false && wantsDopamineBoost ? selectedSide ?? undefined : undefined,
         delayedTimerMinutes: onTask === false ? delayedTimerMinutes ?? undefined : undefined,
+        // Next task for tracking
+        nextTask: nextTaskToSave,
       });
     } catch (error) {
       console.error('Failed to submit check-in:', error);
@@ -198,6 +235,79 @@ function CheckInPopup(): React.ReactElement {
 
   const canSubmitPage1 = onTask !== null && flowRating !== null && moodRating !== null && !submitting;
   const canSubmitPage2 = wantsDopamineBoost !== null && !submitting;
+  const canSubmitPage3 = isContinuing !== null && (isContinuing || nextTask.trim()) && !submitting;
+
+  // Page 3: Continuing or transitioning
+  if (currentPage === 3) {
+    const currentTaskDisplay = taskTags.length > 0 ? taskTags.join(', ') : (tagInput.trim() || 'your current task');
+
+    return (
+      <div className="checkin-popup">
+        <div className="popup-header">
+          <h1 className="popup-title">What's Next?</h1>
+          <button className="close-btn" onClick={handleClose}>
+            ×
+          </button>
+        </div>
+
+        <div className="popup-content">
+          <div className="question-section">
+            <h3 className="question">Are you continuing with the same task or transitioning to something else?</h3>
+            <div className="binary-options">
+              <button
+                className={`option-btn ${isContinuing === true ? 'selected yes' : ''}`}
+                onClick={() => {
+                  setIsContinuing(true);
+                  setNextTask('');
+                }}
+              >
+                Continuing
+              </button>
+              <button
+                className={`option-btn ${isContinuing === false ? 'selected no' : ''}`}
+                onClick={() => setIsContinuing(false)}
+              >
+                Transitioning
+              </button>
+            </div>
+          </div>
+
+          {isContinuing === true && (
+            <div className="continuation-info">
+              <p>Great! Continuing with: <strong>{currentTaskDisplay}</strong></p>
+            </div>
+          )}
+
+          {isContinuing === false && (
+            <div className="question-section">
+              <h3 className="question">What are you transitioning to?</h3>
+              <input
+                type="text"
+                className="next-task-input"
+                value={nextTask}
+                onChange={(e) => setNextTask(e.target.value)}
+                placeholder="e.g., Review PRs, Lunch break, Meeting..."
+                autoFocus
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="popup-footer">
+          <button className="btn btn-ghost" onClick={handleBack}>
+            Back
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={handleSubmit}
+            disabled={!canSubmitPage3}
+          >
+            {submitting ? 'Submitting...' : 'Submit'}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Page 2: Off-task follow-up
   if (currentPage === 2) {
@@ -282,7 +392,7 @@ function CheckInPopup(): React.ReactElement {
             onClick={handleSubmit}
             disabled={!canSubmitPage2}
           >
-            {submitting ? 'Submitting...' : 'Submit'}
+            Next
           </button>
         </div>
       </div>
@@ -431,7 +541,7 @@ function CheckInPopup(): React.ReactElement {
           onClick={handleSubmit}
           disabled={!canSubmitPage1}
         >
-          {submitting ? 'Submitting...' : (onTask === false ? 'Next' : 'Submit')}
+          Next
         </button>
       </div>
     </div>

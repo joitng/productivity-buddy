@@ -41,6 +41,10 @@ import {
   scheduleDelayedTimer,
   closeWinddownEndPopup,
   getPendingTimerDuration,
+  setupPowerMonitor,
+  setCurrentTask,
+  getCurrentTask,
+  closeReturningCheckInPopup,
 } from './services/checkInScheduler';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -71,6 +75,9 @@ const initializeApp = (): void => {
 
   // Schedule check-ins for today
   scheduleCheckInsForToday();
+
+  // Set up power monitor for sleep/wake detection
+  setupPowerMonitor();
 
   // Reschedule check-ins at midnight
   scheduleNextDayCheckIns();
@@ -119,6 +126,13 @@ function registerCheckInHandlers(): void {
         createdAt: now,
       })
       .run();
+
+    // Save the current task for next check-in (use nextTask if transitioning, otherwise taskTag)
+    if (data.nextTask) {
+      setCurrentTask(data.nextTask);
+    } else if (data.taskTag) {
+      setCurrentTask(data.taskTag);
+    }
 
     closeCheckInPopup();
 
@@ -197,6 +211,27 @@ function registerCheckInHandlers(): void {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('timer:start', timerMinutes);
     }
+  });
+
+  // Returning check-in handlers (for post-wake scenarios)
+  ipcMain.handle('returning:submit', async (_, data: { taskDescription: string; timerMinutes: number }) => {
+    // Save the current task for future check-ins
+    setCurrentTask(data.taskDescription);
+    closeReturningCheckInPopup();
+
+    // Send message to main window to start the timer
+    const mainWindow = getMainWindow();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('timer:start', data.timerMinutes);
+    }
+  });
+
+  ipcMain.handle('returning:dismiss', async () => {
+    closeReturningCheckInPopup();
+  });
+
+  ipcMain.handle('returning:getCurrentTask', async () => {
+    return getCurrentTask();
   });
 }
 

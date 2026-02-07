@@ -126,6 +126,14 @@ const config: ForgeConfig = {
               js: './src/preload/index.ts',
             },
           },
+          {
+            html: './src/returning-checkin-popup/index.html',
+            js: './src/returning-checkin-popup/index.tsx',
+            name: 'returning_checkin_window',
+            preload: {
+              js: './src/preload/index.ts',
+            },
+          },
         ],
       },
     }),

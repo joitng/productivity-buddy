@@ -1,4 +1,4 @@
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, powerMonitor } from 'electron';
 import { getDatabase, schema } from '../../database';
 import type { ScheduledChunk, RecurrenceRule } from '../../shared/types';
 import { isChunkActiveOnDate } from '../../shared/recurrence';
@@ -32,6 +32,13 @@ let checkInCounter: number = 0; // Track check-in count for break reminders
 let delayedTimerTimeout: NodeJS.Timeout | null = null;
 let pendingTimerDuration: number = 0; // Timer duration to start after wind-down
 
+// Current task tracking (for passing between check-ins)
+let currentTaskDescription: string | null = null;
+let lastSleepTime: number | null = null;
+
+// Returning check-in popup
+let returningCheckInWindow: BrowserWindow | null = null;
+
 declare const CHECKIN_WINDOW_WEBPACK_ENTRY: string;
 declare const CHECKIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
 declare const CHUNK_END_WINDOW_WEBPACK_ENTRY: string;
@@ -40,6 +47,8 @@ declare const TIMER_END_WINDOW_WEBPACK_ENTRY: string;
 declare const TIMER_END_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
 declare const WINDDOWN_END_WINDOW_WEBPACK_ENTRY: string;
 declare const WINDDOWN_END_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
+declare const RETURNING_CHECKIN_WINDOW_WEBPACK_ENTRY: string;
+declare const RETURNING_CHECKIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
 
 let winddownEndWindow: BrowserWindow | null = null;
 
@@ -267,7 +276,7 @@ export function showCheckInPopup(chunkId: string, chunkName: string): void {
 
   if (checkInWindow && !checkInWindow.isDestroyed()) {
     checkInWindow.focus();
-    checkInWindow.webContents.send('checkin:show', chunkId, chunkName, showBreakReminder);
+    checkInWindow.webContents.send('checkin:show', chunkId, chunkName, showBreakReminder, currentTaskDescription);
     return;
   }
 
@@ -276,7 +285,7 @@ export function showCheckInPopup(chunkId: string, chunkName: string): void {
 
   checkInWindow = new BrowserWindow({
     width: 400,
-    height: 580,
+    height: 650,
     frame: false,
     alwaysOnTop: true,
     resizable: false,
@@ -294,7 +303,7 @@ export function showCheckInPopup(chunkId: string, chunkName: string): void {
   checkInWindow.center();
 
   checkInWindow.webContents.on('did-finish-load', () => {
-    checkInWindow?.webContents.send('checkin:show', chunkId, chunkName, showBreakReminder);
+    checkInWindow?.webContents.send('checkin:show', chunkId, chunkName, showBreakReminder, currentTaskDescription);
   });
 
   checkInWindow.on('closed', () => {
@@ -549,4 +558,95 @@ export function clearDelayedTimer(): void {
     delayedTimerTimeout = null;
   }
   pendingTimerDuration = 0;
+}
+
+// Current task tracking functions
+export function setCurrentTask(task: string | null): void {
+  currentTaskDescription = task;
+}
+
+export function getCurrentTask(): string | null {
+  return currentTaskDescription;
+}
+
+// Power monitor setup for sleep/wake detection
+export function setupPowerMonitor(): void {
+  powerMonitor.on('suspend', () => {
+    console.log('System suspending - recording sleep time');
+    lastSleepTime = Date.now();
+  });
+
+  powerMonitor.on('resume', () => {
+    console.log('System resuming from sleep');
+    handleSystemWake();
+  });
+}
+
+function handleSystemWake(): void {
+  const now = Date.now();
+  const sleepDuration = lastSleepTime ? now - lastSleepTime : 0;
+  const sleepMinutes = Math.floor(sleepDuration / (1000 * 60));
+
+  console.log(`Woke up after ${sleepMinutes} minutes of sleep`);
+
+  // If we were asleep for more than 5 minutes, show the returning check-in
+  if (sleepMinutes >= 5) {
+    // Clear any stale scheduled notifications and reschedule fresh ones
+    clearAllScheduledCheckIns();
+    scheduleCheckInsForToday();
+
+    // Close any stale popup windows that might have been triggered while sleeping
+    closeCheckInPopup();
+    closeChunkEndPopup();
+    closeTimerEndPopup();
+    closeWinddownEndPopup();
+
+    // Show the returning check-in popup
+    showReturningCheckInPopup();
+  }
+
+  lastSleepTime = null;
+}
+
+// Returning check-in popup functions
+export function showReturningCheckInPopup(): void {
+  if (returningCheckInWindow && !returningCheckInWindow.isDestroyed()) {
+    returningCheckInWindow.focus();
+    returningCheckInWindow.webContents.send('returning:show', currentTaskDescription);
+    return;
+  }
+
+  returningCheckInWindow = new BrowserWindow({
+    width: 400,
+    height: 380,
+    frame: false,
+    alwaysOnTop: true,
+    resizable: false,
+    skipTaskbar: true,
+    webPreferences: {
+      preload: RETURNING_CHECKIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  returningCheckInWindow.loadURL(RETURNING_CHECKIN_WINDOW_WEBPACK_ENTRY);
+
+  // Center on screen
+  returningCheckInWindow.center();
+
+  returningCheckInWindow.webContents.on('did-finish-load', () => {
+    returningCheckInWindow?.webContents.send('returning:show', currentTaskDescription);
+  });
+
+  returningCheckInWindow.on('closed', () => {
+    returningCheckInWindow = null;
+  });
+}
+
+export function closeReturningCheckInPopup(): void {
+  if (returningCheckInWindow && !returningCheckInWindow.isDestroyed()) {
+    returningCheckInWindow.close();
+  }
+  returningCheckInWindow = null;
 }

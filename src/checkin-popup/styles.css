@@ -448,3 +448,37 @@ html, body, #root {
   background: var(--primary);
   color: white;
 }
+
+/* Page 3: Continuing/Transitioning styles */
+.continuation-info {
+  padding: var(--spacing-md);
+  background: rgba(64, 192, 87, 0.1);
+  border: 1px solid var(--success);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.continuation-info strong {
+  color: var(--success);
+}
+
+.next-task-input {
+  width: 100%;
+  padding: var(--spacing-md);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.next-task-input:focus {
+  border-color: var(--primary);
+}
+
+.next-task-input::placeholder {
+  color: var(--text-muted);
+}

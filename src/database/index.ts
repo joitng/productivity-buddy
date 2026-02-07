@@ -126,6 +126,13 @@ function initializeDatabase(): void {
       value TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS dopamine_menu_items (
+      id TEXT PRIMARY KEY,
+      category TEXT NOT NULL,
+      name TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
     -- Create indexes
     CREATE INDEX IF NOT EXISTS idx_chunk_overrides_date ON chunk_overrides(date);
     CREATE INDEX IF NOT EXISTS idx_chunk_overrides_chunk_id ON chunk_overrides(chunk_id);
@@ -170,6 +177,23 @@ function initializeDatabase(): void {
   // Migration: Add mood_rating column to check_ins
   try {
     sqliteDb.exec(`ALTER TABLE check_ins ADD COLUMN mood_rating INTEGER NOT NULL DEFAULT 3;`);
+  } catch {
+    // Column already exists, ignore error
+  }
+
+  // Migration: Add dopamine boost columns to check_ins
+  try {
+    sqliteDb.exec(`ALTER TABLE check_ins ADD COLUMN wants_dopamine_boost INTEGER;`);
+  } catch {
+    // Column already exists, ignore error
+  }
+  try {
+    sqliteDb.exec(`ALTER TABLE check_ins ADD COLUMN selected_side TEXT;`);
+  } catch {
+    // Column already exists, ignore error
+  }
+  try {
+    sqliteDb.exec(`ALTER TABLE check_ins ADD COLUMN delayed_timer_minutes INTEGER;`);
   } catch {
     // Column already exists, ignore error
   }

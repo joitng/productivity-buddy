@@ -95,13 +95,13 @@ const electronAPI = {
 
   // Check-in popup
   checkIn: {
-    submit: (data: Omit<CheckIn, 'id' | 'createdAt'>): Promise<void> =>
+    submit: (data: Omit<CheckIn, 'id' | 'createdAt'> & { nextTask?: string }): Promise<void> =>
       ipcRenderer.invoke('checkin:submit', data),
     snooze: (): Promise<void> => ipcRenderer.invoke('checkin:snooze'),
     close: (): Promise<void> => ipcRenderer.invoke('checkin:close'),
     refreshSchedule: (): Promise<void> => ipcRenderer.invoke('checkin:refresh-schedule'),
-    onShow: (callback: (chunkId: string, chunkName: string, showBreakReminder: boolean) => void): void => {
-      ipcRenderer.on('checkin:show', (_, chunkId, chunkName, showBreakReminder) => callback(chunkId, chunkName, showBreakReminder));
+    onShow: (callback: (chunkId: string, chunkName: string, showBreakReminder: boolean, currentTask: string | null) => void): void => {
+      ipcRenderer.on('checkin:show', (_, chunkId, chunkName, showBreakReminder, currentTask) => callback(chunkId, chunkName, showBreakReminder, currentTask));
     },
   },
 
@@ -137,6 +137,17 @@ const electronAPI = {
   timer: {
     onStart: (callback: (minutes: number) => void): void => {
       ipcRenderer.on('timer:start', (_, minutes) => callback(minutes));
+    },
+  },
+
+  // Returning check-in popup (post-wake scenarios)
+  returning: {
+    submit: (data: { taskDescription: string; timerMinutes: number }): Promise<void> =>
+      ipcRenderer.invoke('returning:submit', data),
+    dismiss: (): Promise<void> => ipcRenderer.invoke('returning:dismiss'),
+    getCurrentTask: (): Promise<string | null> => ipcRenderer.invoke('returning:getCurrentTask'),
+    onShow: (callback: (previousTask: string | null) => void): void => {
+      ipcRenderer.on('returning:show', (_, previousTask) => callback(previousTask));
     },
   },
 

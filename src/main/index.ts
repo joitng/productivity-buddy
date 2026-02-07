@@ -27,6 +27,7 @@ import { startAuthFlow, getAuthStatus, logout } from './services/googleAuth';
 import { syncCalendars, startAutoSync, stopAutoSync } from './services/googleCalendar';
 import {
   scheduleCheckInsForToday,
+  showCheckInPopup,
   closeCheckInPopup,
   snoozeCheckIn,
   clearAllScheduledCheckIns,
@@ -45,6 +46,8 @@ import {
   setCurrentTask,
   getCurrentTask,
   closeReturningCheckInPopup,
+  setIsReturningTimer,
+  getIsReturningTimer,
 } from './services/checkInScheduler';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -184,16 +187,25 @@ function registerCheckInHandlers(): void {
 
   // Timer end notification handlers
   ipcMain.handle('timerend:show', async (_, durationMinutes: number) => {
-    showTimerEndPopup(durationMinutes);
+    // If this was a returning timer, show a check-in instead of timer end popup
+    if (getIsReturningTimer()) {
+      setIsReturningTimer(false); // Reset the flag
+      // Show check-in popup with "Focus Session" as the chunk name
+      showCheckInPopup('returning-timer', 'Focus Session');
+    } else {
+      showTimerEndPopup(durationMinutes);
+    }
   });
 
   ipcMain.handle('timerend:dismiss', async () => {
+    setIsReturningTimer(false); // Reset flag when timer is dismissed
     closeTimerEndPopup();
   });
 
   ipcMain.handle('timerend:restart', async () => {
     const duration = getTimerDuration();
     closeTimerEndPopup();
+    // Keep isReturningTimer as-is so restarted timer still triggers check-in
     return duration;
   });
 
@@ -218,6 +230,9 @@ function registerCheckInHandlers(): void {
     // Save the current task for future check-ins
     setCurrentTask(data.taskDescription);
     closeReturningCheckInPopup();
+
+    // Mark this as a returning timer so it triggers a check-in when done
+    setIsReturningTimer(true);
 
     // Send message to main window to start the timer
     const mainWindow = getMainWindow();

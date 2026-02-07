@@ -39,6 +39,9 @@ let lastSleepTime: number | null = null;
 // Returning check-in popup
 let returningCheckInWindow: BrowserWindow | null = null;
 
+// Track if timer was started from returning check-in (should trigger check-in when done)
+let isReturningTimer: boolean = false;
+
 declare const CHECKIN_WINDOW_WEBPACK_ENTRY: string;
 declare const CHECKIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
 declare const CHUNK_END_WINDOW_WEBPACK_ENTRY: string;
@@ -567,6 +570,15 @@ export function setCurrentTask(task: string | null): void {
 
 export function getCurrentTask(): string | null {
   return currentTaskDescription;
+}
+
+// Returning timer tracking (timer started from returning check-in should trigger check-in when done)
+export function setIsReturningTimer(value: boolean): void {
+  isReturningTimer = value;
+}
+
+export function getIsReturningTimer(): boolean {
+  return isReturningTimer;
 }
 
 // Power monitor setup for sleep/wake detection

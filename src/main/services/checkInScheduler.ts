@@ -42,6 +42,18 @@ let returningCheckInWindow: BrowserWindow | null = null;
 // Track if timer was started from returning check-in (should trigger check-in when done)
 let isReturningTimer: boolean = false;
 
+// Track if a timer is currently running (to decide whether to show returning check-in on chunk start)
+let isTimerRunning: boolean = false;
+
+// Scheduled chunk starts (to show returning check-in if no timer running)
+interface ScheduledChunkStart {
+  chunkId: string;
+  chunkName: string;
+  scheduledTime: Date;
+  timeout: NodeJS.Timeout;
+}
+let scheduledChunkStarts: ScheduledChunkStart[] = [];
+
 declare const CHECKIN_WINDOW_WEBPACK_ENTRY: string;
 declare const CHECKIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
 declare const CHUNK_END_WINDOW_WEBPACK_ENTRY: string;
@@ -404,6 +416,11 @@ export function clearAllScheduledCheckIns(): void {
   }
   scheduledChunkEnds = [];
 
+  for (const chunkStart of scheduledChunkStarts) {
+    clearTimeout(chunkStart.timeout);
+  }
+  scheduledChunkStarts = [];
+
   if (snoozeTimeout) {
     clearTimeout(snoozeTimeout);
     snoozeTimeout = null;
@@ -581,6 +598,86 @@ export function getIsReturningTimer(): boolean {
   return isReturningTimer;
 }
 
+// Timer running state tracking
+export function setTimerRunning(running: boolean): void {
+  isTimerRunning = running;
+  console.log(`[Timer] Timer running state: ${running}`);
+}
+
+export function getTimerRunning(): boolean {
+  return isTimerRunning;
+}
+
+// Schedule chunk start notifications (shows returning check-in if no timer running)
+export function scheduleChunkStartsForToday(): void {
+  // Clear existing scheduled chunk starts
+  for (const chunkStart of scheduledChunkStarts) {
+    clearTimeout(chunkStart.timeout);
+  }
+  scheduledChunkStarts = [];
+
+  const db = getDatabase();
+  const chunks = db.select().from(schema.scheduledChunks).all();
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+
+  // Get overrides for today
+  const overrides = db
+    .select()
+    .from(schema.chunkOverrides)
+    .all()
+    .filter((o) => o.date === todayStr);
+
+  for (const chunk of chunks) {
+    const recurrence = JSON.parse(chunk.recurrence) as RecurrenceRule;
+
+    // Check if chunk is within its date range
+    if (chunk.startDate && todayStr < chunk.startDate) continue;
+    if (chunk.endDate && todayStr > chunk.endDate) continue;
+
+    // Check if chunk is active today based on recurrence
+    if (!isChunkActiveOnDate(recurrence, today)) continue;
+
+    // Check for overrides
+    const override = overrides.find((o) => o.chunkId === chunk.id);
+    if (override?.action === 'skip') continue;
+
+    // Get effective start time and name
+    const startTime = override?.modifiedStartTime || chunk.startTime;
+    const name = override?.modifiedName || chunk.name;
+
+    // Calculate start time for today
+    const [startHour, startMin] = startTime.split(':').map(Number);
+    const startDate = new Date(today);
+    startDate.setHours(startHour, startMin, 0, 0);
+
+    // Only schedule if start time is in the future
+    if (startDate > new Date()) {
+      const timeout = setTimeout(() => {
+        handleChunkStart(chunk.id, name);
+      }, startDate.getTime() - Date.now());
+
+      scheduledChunkStarts.push({
+        chunkId: chunk.id,
+        chunkName: name,
+        scheduledTime: startDate,
+        timeout,
+      });
+    }
+  }
+
+  console.log(`Scheduled ${scheduledChunkStarts.length} chunk start notifications for today`);
+}
+
+function handleChunkStart(chunkId: string, chunkName: string): void {
+  console.log(`[ChunkStart] Chunk "${chunkName}" is starting, timer running: ${isTimerRunning}`);
+
+  // If no timer is running, show the returning check-in popup
+  if (!isTimerRunning) {
+    showReturningCheckInPopup();
+  }
+}
+
 // Power monitor setup for sleep/wake detection
 export function setupPowerMonitor(): void {
   powerMonitor.on('suspend', () => {
@@ -603,9 +700,8 @@ function handleSystemWake(): void {
 
   // If we were asleep for more than 5 minutes, show the returning check-in
   if (sleepMinutes >= 5) {
-    // Clear any stale scheduled notifications and reschedule fresh ones
+    // Clear any stale scheduled notifications (no longer rescheduling - check-ins only on timer end)
     clearAllScheduledCheckIns();
-    scheduleCheckInsForToday();
 
     // Close any stale popup windows that might have been triggered while sleeping
     closeCheckInPopup();

@@ -31,6 +31,9 @@ export function getDatabase(): BetterSQLite3Database<typeof schema> {
 function initializeDatabase(): void {
   if (!sqliteDb) return;
 
+  // Disable foreign key enforcement (allows timer-session and other non-chunk IDs in check_ins)
+  sqliteDb.exec(`PRAGMA foreign_keys = OFF;`);
+
   // Create tables if they don't exist
   sqliteDb.exec(`
     CREATE TABLE IF NOT EXISTS scheduled_chunks (
@@ -133,12 +136,38 @@ function initializeDatabase(): void {
       created_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS weekly_plan_days (
+      id TEXT PRIMARY KEY,
+      date TEXT NOT NULL UNIQUE,
+      primary_label TEXT,
+      goals TEXT,
+      morning_plan TEXT,
+      lunch_plan TEXT,
+      afternoon_plan TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
     -- Create indexes
     CREATE INDEX IF NOT EXISTS idx_chunk_overrides_date ON chunk_overrides(date);
     CREATE INDEX IF NOT EXISTS idx_chunk_overrides_chunk_id ON chunk_overrides(chunk_id);
     CREATE INDEX IF NOT EXISTS idx_day_label_overrides_date ON day_label_overrides(date);
     CREATE INDEX IF NOT EXISTS idx_check_ins_timestamp ON check_ins(timestamp);
     CREATE INDEX IF NOT EXISTS idx_google_events_start ON google_calendar_events(start_time);
+    CREATE INDEX IF NOT EXISTS idx_weekly_plan_days_date ON weekly_plan_days(date);
+
+    CREATE TABLE IF NOT EXISTS weekly_tasks (
+      id TEXT PRIMARY KEY,
+      week_start TEXT NOT NULL,
+      category TEXT NOT NULL,
+      text TEXT NOT NULL,
+      completed INTEGER NOT NULL DEFAULT 0,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_weekly_tasks_week_start ON weekly_tasks(week_start);
   `);
 
   // Migration: Add modified_color column to chunk_overrides if it doesn't exist
@@ -194,6 +223,20 @@ function initializeDatabase(): void {
   }
   try {
     sqliteDb.exec(`ALTER TABLE check_ins ADD COLUMN delayed_timer_minutes INTEGER;`);
+  } catch {
+    // Column already exists, ignore error
+  }
+
+  // Migration: Add primary_label_color column to weekly_plan_days
+  try {
+    sqliteDb.exec(`ALTER TABLE weekly_plan_days ADD COLUMN primary_label_color TEXT;`);
+  } catch {
+    // Column already exists, ignore error
+  }
+
+  // Migration: Add response_status column to google_calendar_events
+  try {
+    sqliteDb.exec(`ALTER TABLE google_calendar_events ADD COLUMN response_status TEXT;`);
   } catch {
     // Column already exists, ignore error
   }

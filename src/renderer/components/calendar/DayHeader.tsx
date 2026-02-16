@@ -1,17 +1,20 @@
 import React from 'react';
 import { format, isToday } from 'date-fns';
-import type { DayLabel } from '../../../shared/types';
+import type { WeeklyPlanDay } from '../../../shared/types';
 import './DayHeader.css';
 
 interface DayHeaderProps {
   date: Date;
-  label?: DayLabel & { isOverridden?: boolean };
+  planDay?: WeeklyPlanDay;
 }
 
-function DayHeader({ date, label }: DayHeaderProps): React.ReactElement {
+function DayHeader({ date, planDay }: DayHeaderProps): React.ReactElement {
   const dayName = format(date, 'EEE');
   const dayNumber = format(date, 'd');
   const today = isToday(date);
+
+  const hasLabel = planDay?.primaryLabel;
+  const labelColor = planDay?.primaryLabelColor || '#4c6ef5';
 
   return (
     <div className={`day-header ${today ? 'today' : ''}`}>
@@ -19,13 +22,12 @@ function DayHeader({ date, label }: DayHeaderProps): React.ReactElement {
         <span className="day-name">{dayName}</span>
         <span className={`day-number ${today ? 'today-number' : ''}`}>{dayNumber}</span>
       </div>
-      {label && (
+      {hasLabel && (
         <div
           className="day-label"
-          style={{ backgroundColor: `${label.color}20`, color: label.color }}
+          style={{ backgroundColor: `${labelColor}20`, color: labelColor }}
         >
-          {label.emoji && <span className="label-emoji">{label.emoji}</span>}
-          <span className="label-text">{label.label}</span>
+          <span className="label-text">{planDay.primaryLabel}</span>
         </div>
       )}
     </div>

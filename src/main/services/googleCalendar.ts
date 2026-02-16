@@ -1,6 +1,6 @@
 import { google, calendar_v3 } from 'googleapis';
 import { v4 as uuidv4 } from 'uuid';
-import { eq } from 'drizzle-orm';
+import { eq, and, gte, lte } from 'drizzle-orm';
 import { getDatabase, schema } from '../../database';
 import { getAuthenticatedClient } from './googleAuth';
 
@@ -16,6 +16,10 @@ export async function syncCalendars(): Promise<{ success: boolean; error?: strin
     const calendar = google.calendar({ version: 'v3', auth: client });
     const db = getDatabase();
     const now = new Date().toISOString();
+
+    // Get authenticated user's email for RSVP status lookup
+    const tokens = db.select().from(schema.googleAuthTokens).get();
+    const userEmail = tokens?.email?.toLowerCase();
 
     // Get list of calendars
     const calendarList = await calendar.calendarList.list();
@@ -70,12 +74,36 @@ export async function syncCalendars(): Promise<{ success: boolean; error?: strin
 
         const eventItems = events.data.items || [];
 
+        // Track which Google event IDs we received from the API
+        const syncedGoogleEventIds: string[] = [];
+
         for (const event of eventItems) {
           if (!event.id) continue;
+
+          // Handle cancelled events (deleted or moved recurring instances)
+          if (event.status === 'cancelled') {
+            db.delete(schema.googleCalendarEvents)
+              .where(eq(schema.googleCalendarEvents.googleEventId, event.id))
+              .run();
+            continue;
+          }
+
+          syncedGoogleEventIds.push(event.id);
 
           const startTime = getEventTime(event.start);
           const endTime = getEventTime(event.end);
           const isAllDay = !event.start?.dateTime;
+
+          // Get user's RSVP status from attendees array
+          let responseStatus: string | null = null;
+          if (userEmail && event.attendees) {
+            const userAttendee = event.attendees.find(
+              (a) => a.email?.toLowerCase() === userEmail || a.self === true
+            );
+            if (userAttendee) {
+              responseStatus = userAttendee.responseStatus || null;
+            }
+          }
 
           const existing = db
             .select()
@@ -92,6 +120,7 @@ export async function syncCalendars(): Promise<{ success: boolean; error?: strin
                 startTime,
                 endTime,
                 isAllDay,
+                responseStatus,
                 lastSyncedAt: now,
               })
               .where(eq(schema.googleCalendarEvents.googleEventId, event.id))
@@ -109,8 +138,32 @@ export async function syncCalendars(): Promise<{ success: boolean; error?: strin
                 endTime,
                 isAllDay,
                 isFixed: true, // Default to fixed
+                responseStatus,
                 lastSyncedAt: now,
               })
+              .run();
+          }
+        }
+
+        // Delete events that exist in our database for this calendar within the sync range
+        // but were NOT returned by the API (meaning they were deleted from Google Calendar)
+        const localEventsInRange = db
+          .select()
+          .from(schema.googleCalendarEvents)
+          .where(
+            and(
+              eq(schema.googleCalendarEvents.calendarId, cal.googleCalendarId),
+              gte(schema.googleCalendarEvents.startTime, timeMin.toISOString()),
+              lte(schema.googleCalendarEvents.startTime, timeMax.toISOString())
+            )
+          )
+          .all();
+
+        for (const localEvent of localEventsInRange) {
+          if (!syncedGoogleEventIds.includes(localEvent.googleEventId)) {
+            console.log(`[CalendarSync] Deleting event "${localEvent.title}" - no longer exists in Google Calendar`);
+            db.delete(schema.googleCalendarEvents)
+              .where(eq(schema.googleCalendarEvents.id, localEvent.id))
               .run();
           }
         }
@@ -125,11 +178,11 @@ export async function syncCalendars(): Promise<{ success: boolean; error?: strin
       }
     }
 
-    // Clean up old events (older than 30 days)
+    // Clean up old events (older than 30 days past)
     const oldThreshold = new Date();
     oldThreshold.setDate(oldThreshold.getDate() - 30);
     db.delete(schema.googleCalendarEvents)
-      .where(eq(schema.googleCalendarEvents.endTime, oldThreshold.toISOString()))
+      .where(lte(schema.googleCalendarEvents.endTime, oldThreshold.toISOString()))
       .run();
 
     return { success: true };
@@ -144,7 +197,9 @@ function getEventTime(eventTime: calendar_v3.Schema$EventDateTime | undefined): 
     return new Date().toISOString();
   }
   if (eventTime.dateTime) {
-    return eventTime.dateTime;
+    // Normalize to UTC ISO string for consistent string comparisons in queries
+    // This handles timezone offsets like "2024-02-15T10:00:00-08:00" correctly
+    return new Date(eventTime.dateTime).toISOString();
   }
   if (eventTime.date) {
     // For all-day events, treat the date as local midnight to avoid timezone shifts

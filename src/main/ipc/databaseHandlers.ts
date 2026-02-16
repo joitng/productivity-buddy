@@ -2,7 +2,7 @@ import { ipcMain } from 'electron';
 import { v4 as uuidv4 } from 'uuid';
 import { eq, and, gte, lte } from 'drizzle-orm';
 import { getDatabase, schema } from '../../database';
-import type { ScheduledChunk, ChunkOverride, DayLabel, DayLabelOverride, CheckIn, RecurrenceRule, DopamineMenuItem, DopamineMenuCategory } from '../../shared/types';
+import type { ScheduledChunk, ChunkOverride, DayLabel, DayLabelOverride, CheckIn, RecurrenceRule, DopamineMenuItem, DopamineMenuCategory, WeeklyTask, WeeklyTaskCategory } from '../../shared/types';
 
 export function registerDatabaseHandlers(): void {
   const db = getDatabase();
@@ -257,5 +257,152 @@ export function registerDatabaseHandlers(): void {
 
   ipcMain.handle('db:dopamine-menu:delete', async (_, id: string) => {
     db.delete(schema.dopamineMenuItems).where(eq(schema.dopamineMenuItems.id, id)).run();
+  });
+
+  // Weekly Plan Days
+  ipcMain.handle('db:weekly-plan:getByDateRange', async (_, startDate: string, endDate: string) => {
+    const plans = db
+      .select()
+      .from(schema.weeklyPlanDays)
+      .where(and(gte(schema.weeklyPlanDays.date, startDate), lte(schema.weeklyPlanDays.date, endDate)))
+      .all();
+
+    return plans.map((p) => ({
+      ...p,
+      goals: p.goals ? JSON.parse(p.goals) : [],
+    }));
+  });
+
+  ipcMain.handle('db:weekly-plan:upsert', async (_, day: { date: string; primaryLabel?: string; primaryLabelColor?: string; goals?: string[]; morningPlan?: string; lunchPlan?: string; afternoonPlan?: string }) => {
+    const now = new Date().toISOString();
+    const existing = db.select().from(schema.weeklyPlanDays).where(eq(schema.weeklyPlanDays.date, day.date)).get();
+
+    if (existing) {
+      const updateData = {
+        primaryLabel: day.primaryLabel ?? null,
+        primaryLabelColor: day.primaryLabelColor ?? null,
+        goals: JSON.stringify(day.goals ?? []),
+        morningPlan: day.morningPlan ?? null,
+        lunchPlan: day.lunchPlan ?? null,
+        afternoonPlan: day.afternoonPlan ?? null,
+        updatedAt: now,
+      };
+      db.update(schema.weeklyPlanDays).set(updateData).where(eq(schema.weeklyPlanDays.id, existing.id)).run();
+      return { ...existing, ...updateData, goals: day.goals ?? [] };
+    } else {
+      const newPlan = {
+        id: uuidv4(),
+        date: day.date,
+        primaryLabel: day.primaryLabel ?? null,
+        primaryLabelColor: day.primaryLabelColor ?? null,
+        goals: JSON.stringify(day.goals ?? []),
+        morningPlan: day.morningPlan ?? null,
+        lunchPlan: day.lunchPlan ?? null,
+        afternoonPlan: day.afternoonPlan ?? null,
+        createdAt: now,
+        updatedAt: now,
+      };
+      db.insert(schema.weeklyPlanDays).values(newPlan).run();
+      return { ...newPlan, goals: day.goals ?? [] };
+    }
+  });
+
+  ipcMain.handle('db:weekly-plan:updateField', async (_, date: string, field: string, value: string | string[] | null) => {
+    const now = new Date().toISOString();
+    const existing = db.select().from(schema.weeklyPlanDays).where(eq(schema.weeklyPlanDays.date, date)).get();
+
+    if (existing) {
+      // Use explicit schema column references for each field type
+      if (field === 'goals') {
+        db.update(schema.weeklyPlanDays)
+          .set({ goals: JSON.stringify(value ?? []), updatedAt: now })
+          .where(eq(schema.weeklyPlanDays.id, existing.id))
+          .run();
+      } else if (field === 'primaryLabel') {
+        db.update(schema.weeklyPlanDays)
+          .set({ primaryLabel: value as string | null, updatedAt: now })
+          .where(eq(schema.weeklyPlanDays.id, existing.id))
+          .run();
+      } else if (field === 'primaryLabelColor') {
+        db.update(schema.weeklyPlanDays)
+          .set({ primaryLabelColor: value as string | null, updatedAt: now })
+          .where(eq(schema.weeklyPlanDays.id, existing.id))
+          .run();
+      } else if (field === 'morningPlan') {
+        db.update(schema.weeklyPlanDays)
+          .set({ morningPlan: value as string | null, updatedAt: now })
+          .where(eq(schema.weeklyPlanDays.id, existing.id))
+          .run();
+      } else if (field === 'lunchPlan') {
+        db.update(schema.weeklyPlanDays)
+          .set({ lunchPlan: value as string | null, updatedAt: now })
+          .where(eq(schema.weeklyPlanDays.id, existing.id))
+          .run();
+      } else if (field === 'afternoonPlan') {
+        db.update(schema.weeklyPlanDays)
+          .set({ afternoonPlan: value as string | null, updatedAt: now })
+          .where(eq(schema.weeklyPlanDays.id, existing.id))
+          .run();
+      }
+      const updated = db.select().from(schema.weeklyPlanDays).where(eq(schema.weeklyPlanDays.id, existing.id)).get();
+      return { ...updated, goals: updated?.goals ? JSON.parse(updated.goals) : [] };
+    } else {
+      const newPlan = {
+        id: uuidv4(),
+        date,
+        primaryLabel: field === 'primaryLabel' ? (value as string | null) : null,
+        primaryLabelColor: field === 'primaryLabelColor' ? (value as string | null) : null,
+        goals: field === 'goals' ? JSON.stringify(value ?? []) : '[]',
+        morningPlan: field === 'morningPlan' ? (value as string | null) : null,
+        lunchPlan: field === 'lunchPlan' ? (value as string | null) : null,
+        afternoonPlan: field === 'afternoonPlan' ? (value as string | null) : null,
+        createdAt: now,
+        updatedAt: now,
+      };
+      db.insert(schema.weeklyPlanDays).values(newPlan).run();
+      return { ...newPlan, goals: field === 'goals' ? (value as string[]) : [] };
+    }
+  });
+
+  // Weekly Tasks
+  ipcMain.handle('db:weekly-tasks:getByWeek', async (_, weekStart: string) => {
+    return db
+      .select()
+      .from(schema.weeklyTasks)
+      .where(eq(schema.weeklyTasks.weekStart, weekStart))
+      .all();
+  });
+
+  ipcMain.handle('db:weekly-tasks:create', async (_, task: Omit<WeeklyTask, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const now = new Date().toISOString();
+    const newTask = {
+      id: uuidv4(),
+      ...task,
+      createdAt: now,
+      updatedAt: now,
+    };
+    db.insert(schema.weeklyTasks).values(newTask).run();
+    return newTask;
+  });
+
+  ipcMain.handle('db:weekly-tasks:update', async (_, id: string, updates: Partial<WeeklyTask>) => {
+    const now = new Date().toISOString();
+    const updateData: Record<string, unknown> = { updatedAt: now };
+
+    if ('text' in updates) updateData.text = updates.text;
+    if ('completed' in updates) updateData.completed = updates.completed;
+    if ('category' in updates) updateData.category = updates.category;
+    if ('sortOrder' in updates) updateData.sortOrder = updates.sortOrder;
+
+    db.update(schema.weeklyTasks)
+      .set(updateData)
+      .where(eq(schema.weeklyTasks.id, id))
+      .run();
+
+    return db.select().from(schema.weeklyTasks).where(eq(schema.weeklyTasks.id, id)).get();
+  });
+
+  ipcMain.handle('db:weekly-tasks:delete', async (_, id: string) => {
+    db.delete(schema.weeklyTasks).where(eq(schema.weeklyTasks.id, id)).run();
   });
 }

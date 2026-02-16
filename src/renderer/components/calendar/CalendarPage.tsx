@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Calendar, dateFnsLocalizer, Views, View, SlotInfo } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay, addDays, startOfDay, endOfDay } from 'date-fns';
 import { enUS } from 'date-fns/locale';
-import type { ScheduledChunk, GoogleCalendarEvent, DayLabel, ChunkOverride, DayLabelOverride, CalendarEvent } from '../../../shared/types';
+import type { ScheduledChunk, GoogleCalendarEvent, ChunkOverride, CalendarEvent, WeeklyPlanDay } from '../../../shared/types';
 import { isChunkActiveOnDate } from '../../../shared/recurrence';
 import DayHeader from './DayHeader';
 import EventComponent from './EventComponent';
@@ -24,8 +24,7 @@ function CalendarPage(): React.ReactElement {
   const [view, setView] = useState<View>(Views.WEEK);
   const [chunks, setChunks] = useState<ScheduledChunk[]>([]);
   const [chunkOverrides, setChunkOverrides] = useState<ChunkOverride[]>([]);
-  const [dayLabels, setDayLabels] = useState<DayLabel[]>([]);
-  const [dayLabelOverrides, setDayLabelOverrides] = useState<DayLabelOverride[]>([]);
+  const [weeklyPlanDays, setWeeklyPlanDays] = useState<WeeklyPlanDay[]>([]);
   const [googleEvents, setGoogleEvents] = useState<GoogleCalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [showChunkEditor, setShowChunkEditor] = useState(false);
@@ -43,11 +42,10 @@ function CalendarPage(): React.ReactElement {
       const startStr = format(weekStart, 'yyyy-MM-dd');
       const endStr = format(weekEnd, 'yyyy-MM-dd');
 
-      const [chunksData, overridesData, labelsData, labelOverridesData, eventsData] = await Promise.all([
+      const [chunksData, overridesData, weeklyPlanData, eventsData] = await Promise.all([
         window.electronAPI.chunks.getAll(),
         window.electronAPI.chunkOverrides.getByDateRange(startStr, endStr),
-        window.electronAPI.dayLabels.getAll(),
-        window.electronAPI.dayLabelOverrides.getByDateRange(startStr, endStr),
+        window.electronAPI.weeklyPlan.getByDateRange(startStr, endStr),
         window.electronAPI.googleEvents.getByDateRange(
           weekStart.toISOString(),
           weekEnd.toISOString()
@@ -56,8 +54,7 @@ function CalendarPage(): React.ReactElement {
 
       setChunks(chunksData);
       setChunkOverrides(overridesData);
-      setDayLabels(labelsData);
-      setDayLabelOverrides(labelOverridesData);
+      setWeeklyPlanDays(weeklyPlanData);
       setGoogleEvents(eventsData);
     } catch (error) {
       console.error('Failed to load calendar data:', error);
@@ -150,34 +147,13 @@ function CalendarPage(): React.ReactElement {
     return result;
   }, [chunks, chunkOverrides, googleEvents, currentDate]);
 
-  const dayLabelsForWeek = useMemo(() => {
-    const result: Map<string, DayLabel & { isOverridden?: boolean }> = new Map();
-    const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
-
-    for (let i = 0; i < 7; i++) {
-      const date = addDays(weekStart, i);
-      const dateStr = format(date, 'yyyy-MM-dd');
-
-      for (const label of dayLabels) {
-        if (!isChunkActiveOnDate(label.recurrence, date)) continue;
-
-        const override = dayLabelOverrides.find(
-          (o) => o.dayLabelId === label.id && o.date === dateStr
-        );
-        if (override?.action === 'skip') continue;
-
-        result.set(dateStr, {
-          ...label,
-          label: override?.modifiedLabel || label.label,
-          color: override?.modifiedColor || label.color,
-          emoji: override?.modifiedEmoji || label.emoji,
-          isOverridden: !!override,
-        });
-      }
+  const weeklyPlanForWeek = useMemo(() => {
+    const result: Map<string, WeeklyPlanDay> = new Map();
+    for (const planDay of weeklyPlanDays) {
+      result.set(planDay.date, planDay);
     }
-
     return result;
-  }, [dayLabels, dayLabelOverrides, currentDate]);
+  }, [weeklyPlanDays]);
 
   const handleNavigate = (date: Date) => {
     setCurrentDate(date);
@@ -483,7 +459,7 @@ function CalendarPage(): React.ReactElement {
   const components = {
     event: EventComponent,
     header: ({ date }: { date: Date }) => (
-      <DayHeader date={date} label={dayLabelsForWeek.get(format(date, 'yyyy-MM-dd'))} />
+      <DayHeader date={date} planDay={weeklyPlanForWeek.get(format(date, 'yyyy-MM-dd'))} />
     ),
   };
 

@@ -203,7 +203,7 @@ function CheckInPopup(): React.ReactElement {
       // Determine the next task to save
       const nextTaskToSave = isContinuing ? taskTagString : (nextTask.trim() || undefined);
 
-      await window.electronAPI.checkIn.submit({
+      const result = await window.electronAPI.checkIn.submit({
         chunkId,
         chunkName,
         timestamp: new Date().toISOString(),
@@ -215,12 +215,24 @@ function CheckInPopup(): React.ReactElement {
         // Off-task follow-up fields (only included if off-task)
         wantsDopamineBoost: onTask === false ? wantsDopamineBoost ?? undefined : undefined,
         selectedSide: onTask === false && wantsDopamineBoost ? selectedSide ?? undefined : undefined,
-        delayedTimerMinutes: onTask === false ? delayedTimerMinutes ?? undefined : undefined,
+        // Timer is now on page 3 for all check-ins
+        delayedTimerMinutes: delayedTimerMinutes ?? undefined,
         // Next task for tracking
         nextTask: nextTaskToSave,
       });
+
+      // Check if submission returned an error
+      if (result && typeof result === 'object' && 'error' in result) {
+        console.error('Check-in submission failed:', result.error);
+        alert(`Failed to submit check-in: ${result.error}`);
+        setSubmitting(false);
+        return;
+      }
     } catch (error) {
       console.error('Failed to submit check-in:', error);
+      alert(`Failed to submit check-in: ${error}`);
+      setSubmitting(false);
+      return;
     }
     setSubmitting(false);
   };
@@ -289,6 +301,23 @@ function CheckInPopup(): React.ReactElement {
                 placeholder="e.g., Review PRs, Lunch break, Meeting..."
                 autoFocus
               />
+            </div>
+          )}
+
+          {isContinuing !== null && (
+            <div className="question-section">
+              <h3 className="question">Set a timer for your next focus session?</h3>
+              <div className="timer-options">
+                {[15, 25, 35].map((minutes) => (
+                  <button
+                    key={minutes}
+                    className={`timer-option-btn ${delayedTimerMinutes === minutes ? 'selected' : ''}`}
+                    onClick={() => setDelayedTimerMinutes(delayedTimerMinutes === minutes ? null : minutes)}
+                  >
+                    {minutes} min
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -365,22 +394,6 @@ function CheckInPopup(): React.ReactElement {
               )}
             </div>
           )}
-
-          <div className="question-section">
-            <h3 className="question">Set a timer to get back to work?</h3>
-            <p className="timer-subtitle">Timer will start after a 3-minute wind-down period</p>
-            <div className="timer-options">
-              {[10, 15, 25].map((minutes) => (
-                <button
-                  key={minutes}
-                  className={`timer-option-btn ${delayedTimerMinutes === minutes ? 'selected' : ''}`}
-                  onClick={() => setDelayedTimerMinutes(delayedTimerMinutes === minutes ? null : minutes)}
-                >
-                  {minutes} min
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
         <div className="popup-footer">

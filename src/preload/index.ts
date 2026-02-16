@@ -9,6 +9,8 @@ import type {
   SyncedCalendar,
   DopamineMenuItem,
   DopamineMenuCategory,
+  WeeklyPlanDay,
+  WeeklyTask,
 } from '../shared/types';
 
 const electronAPI = {
@@ -95,7 +97,7 @@ const electronAPI = {
 
   // Check-in popup
   checkIn: {
-    submit: (data: Omit<CheckIn, 'id' | 'createdAt'> & { nextTask?: string }): Promise<void> =>
+    submit: (data: Omit<CheckIn, 'id' | 'createdAt'> & { nextTask?: string }): Promise<{ success: boolean; error?: string }> =>
       ipcRenderer.invoke('checkin:submit', data),
     snooze: (): Promise<void> => ipcRenderer.invoke('checkin:snooze'),
     close: (): Promise<void> => ipcRenderer.invoke('checkin:close'),
@@ -138,6 +140,13 @@ const electronAPI = {
     onStart: (callback: (minutes: number) => void): void => {
       ipcRenderer.on('timer:start', (_, minutes) => callback(minutes));
     },
+    setRunning: (running: boolean): Promise<void> => ipcRenderer.invoke('timer:setRunning', running),
+  },
+
+  // Task tracking (for timer page to note current task)
+  task: {
+    setCurrent: (task: string | null): Promise<void> => ipcRenderer.invoke('task:setCurrent', task),
+    getCurrent: (): Promise<string | null> => ipcRenderer.invoke('task:getCurrent'),
   },
 
   // Returning check-in popup (post-wake scenarios)
@@ -168,6 +177,28 @@ const electronAPI = {
     create: (item: Omit<DopamineMenuItem, 'id' | 'createdAt'>): Promise<DopamineMenuItem> =>
       ipcRenderer.invoke('db:dopamine-menu:create', item),
     delete: (id: string): Promise<void> => ipcRenderer.invoke('db:dopamine-menu:delete', id),
+  },
+
+  // Weekly Planner
+  weeklyPlan: {
+    getByDateRange: (startDate: string, endDate: string): Promise<WeeklyPlanDay[]> =>
+      ipcRenderer.invoke('db:weekly-plan:getByDateRange', startDate, endDate),
+    upsert: (day: Omit<WeeklyPlanDay, 'id' | 'createdAt' | 'updatedAt'>): Promise<WeeklyPlanDay> =>
+      ipcRenderer.invoke('db:weekly-plan:upsert', day),
+    updateField: (date: string, field: string, value: string | string[] | null): Promise<WeeklyPlanDay> =>
+      ipcRenderer.invoke('db:weekly-plan:updateField', date, field, value),
+  },
+
+  // Weekly Tasks
+  weeklyTasks: {
+    getByWeek: (weekStart: string): Promise<WeeklyTask[]> =>
+      ipcRenderer.invoke('db:weekly-tasks:getByWeek', weekStart),
+    create: (task: Omit<WeeklyTask, 'id' | 'createdAt' | 'updatedAt'>): Promise<WeeklyTask> =>
+      ipcRenderer.invoke('db:weekly-tasks:create', task),
+    update: (id: string, updates: Partial<WeeklyTask>): Promise<WeeklyTask> =>
+      ipcRenderer.invoke('db:weekly-tasks:update', id, updates),
+    delete: (id: string): Promise<void> =>
+      ipcRenderer.invoke('db:weekly-tasks:delete', id),
   },
 };
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTimer } from '../context/TimerContext';
 import './TimerPage.css';
 
@@ -14,6 +14,25 @@ function TimerPage(): React.ReactElement {
     reset,
     adjustTime,
   } = useTimer();
+
+  const [currentTask, setCurrentTask] = useState<string>('');
+
+  // Load the current task on mount
+  useEffect(() => {
+    window.electronAPI.task.getCurrent().then((task) => {
+      if (task) {
+        setCurrentTask(task);
+      }
+    });
+  }, []);
+
+  // Wrapped start that saves task first
+  const handleStart = useCallback(() => {
+    if (currentTask.trim()) {
+      window.electronAPI.task.setCurrent(currentTask.trim());
+    }
+    start();
+  }, [currentTask, start]);
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -92,7 +111,7 @@ function TimerPage(): React.ReactElement {
 
         <div className="timer-controls">
           {!isRunning ? (
-            <button className="control-btn start" onClick={start} disabled={remainingSeconds === 0}>
+            <button className="control-btn start" onClick={handleStart} disabled={remainingSeconds === 0}>
               {remainingSeconds === totalSeconds ? 'Start' : 'Resume'}
             </button>
           ) : (
@@ -103,6 +122,17 @@ function TimerPage(): React.ReactElement {
           <button className="control-btn reset" onClick={reset}>
             Reset
           </button>
+        </div>
+
+        <div className="task-input-section">
+          <input
+            type="text"
+            className="task-input"
+            placeholder="What are you working on? (optional)"
+            value={currentTask}
+            onChange={(e) => setCurrentTask(e.target.value)}
+            disabled={isRunning}
+          />
         </div>
       </div>
 

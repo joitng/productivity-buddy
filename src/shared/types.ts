@@ -88,6 +88,8 @@ export interface DopamineMenuItem {
 }
 
 // Google Calendar
+export type CalendarResponseStatus = 'accepted' | 'declined' | 'tentative' | 'needsAction';
+
 export interface GoogleCalendarEvent {
   id: string;
   googleEventId: string;
@@ -98,6 +100,7 @@ export interface GoogleCalendarEvent {
   endTime: string;
   isAllDay: boolean;
   isFixed: boolean;
+  responseStatus?: CalendarResponseStatus | null; // User's RSVP status (null = organizer/no attendees)
   lastSyncedAt: string;
 }
 
@@ -124,6 +127,34 @@ export interface GoogleAuthTokens {
 export interface AppSetting {
   key: string;
   value: string;
+}
+
+// Weekly Planner
+export interface WeeklyPlanDay {
+  id: string;
+  date: string; // YYYY-MM-DD
+  primaryLabel?: string | null;
+  primaryLabelColor?: string | null; // Hex color for the headline
+  goals: string[]; // Parsed from JSON
+  morningPlan?: string | null;
+  lunchPlan?: string | null;
+  afternoonPlan?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Weekly Tasks
+export type WeeklyTaskCategory = 'active' | 'focus';
+
+export interface WeeklyTask {
+  id: string;
+  weekStart: string; // YYYY-MM-DD of the Monday of the week
+  category: WeeklyTaskCategory;
+  text: string;
+  completed: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // Calendar display types
@@ -185,4 +216,9 @@ export type IpcChannels = {
   'checkin:submit': (data: Omit<CheckIn, 'id' | 'createdAt'>) => void;
   'checkin:snooze': () => void;
   'checkin:close': () => void;
+
+  // Weekly Planner
+  'db:weekly-plan:getByDateRange': (startDate: string, endDate: string) => WeeklyPlanDay[];
+  'db:weekly-plan:upsert': (day: Omit<WeeklyPlanDay, 'id' | 'createdAt' | 'updatedAt'>) => WeeklyPlanDay;
+  'db:weekly-plan:updateField': (date: string, field: string, value: string | string[] | null) => WeeklyPlanDay;
 };

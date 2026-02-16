@@ -48,7 +48,7 @@ export const dayLabelOverrides = sqliteTable('day_label_overrides', {
 
 export const checkIns = sqliteTable('check_ins', {
   id: text('id').primaryKey(),
-  chunkId: text('chunk_id').notNull().references(() => scheduledChunks.id, { onDelete: 'cascade' }),
+  chunkId: text('chunk_id').notNull(), // No foreign key - allows timer-session and other non-chunk IDs
   chunkName: text('chunk_name').notNull(),
   timestamp: text('timestamp').notNull(),
   onTask: integer('on_task', { mode: 'boolean' }).notNull(),
@@ -81,6 +81,7 @@ export const googleCalendarEvents = sqliteTable('google_calendar_events', {
   endTime: text('end_time').notNull(),
   isAllDay: integer('is_all_day', { mode: 'boolean' }).notNull().default(false),
   isFixed: integer('is_fixed', { mode: 'boolean' }).notNull().default(true),
+  responseStatus: text('response_status'), // 'accepted' | 'declined' | 'tentative' | 'needsAction' | null (organizer/no attendees)
   lastSyncedAt: text('last_synced_at').notNull(),
 });
 
@@ -106,4 +107,28 @@ export const googleAuthTokens = sqliteTable('google_auth_tokens', {
 export const appSettings = sqliteTable('app_settings', {
   key: text('key').primaryKey(),
   value: text('value').notNull(),
+});
+
+export const weeklyPlanDays = sqliteTable('weekly_plan_days', {
+  id: text('id').primaryKey(),
+  date: text('date').notNull().unique(), // YYYY-MM-DD - one row per day
+  primaryLabel: text('primary_label'),
+  primaryLabelColor: text('primary_label_color'), // Hex color for the headline
+  goals: text('goals'), // JSON string: string[] - numbered list of goals
+  morningPlan: text('morning_plan'),
+  lunchPlan: text('lunch_plan'),
+  afternoonPlan: text('afternoon_plan'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+export const weeklyTasks = sqliteTable('weekly_tasks', {
+  id: text('id').primaryKey(),
+  weekStart: text('week_start').notNull(), // YYYY-MM-DD of the Monday of the week
+  category: text('category').notNull(), // 'active' | 'focus'
+  text: text('text').notNull(),
+  completed: integer('completed', { mode: 'boolean' }).notNull().default(false),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
 });

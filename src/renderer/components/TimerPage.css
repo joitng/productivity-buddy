@@ -190,3 +190,33 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.task-input-section {
+  width: 100%;
+  margin-top: var(--spacing-md);
+}
+
+.task-input {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  font-size: 14px;
+  color: var(--text-primary);
+  transition: border-color 0.15s ease;
+}
+
+.task-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.task-input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.task-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

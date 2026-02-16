@@ -25,15 +25,15 @@ import { registerDatabaseHandlers } from './ipc/databaseHandlers';
 import { getDatabase, closeDatabase, schema } from '../database';
 import { startAuthFlow, getAuthStatus, logout } from './services/googleAuth';
 import { syncCalendars, startAutoSync, stopAutoSync } from './services/googleCalendar';
+import { isChunkActiveOnDate } from '../shared/recurrence';
+import type { RecurrenceRule } from '../shared/types';
 import {
-  scheduleCheckInsForToday,
   showCheckInPopup,
   closeCheckInPopup,
   snoozeCheckIn,
   clearAllScheduledCheckIns,
   closeChunkEndPopup,
   snoozeChunkEnd,
-  showTimerEndPopup,
   closeTimerEndPopup,
   getTimerDuration,
   getScheduledCheckIns,
@@ -46,8 +46,8 @@ import {
   setCurrentTask,
   getCurrentTask,
   closeReturningCheckInPopup,
-  setIsReturningTimer,
-  getIsReturningTimer,
+  setTimerRunning,
+  scheduleChunkStartsForToday,
 } from './services/checkInScheduler';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -76,14 +76,11 @@ const initializeApp = (): void => {
     }
   });
 
-  // Schedule check-ins for today
-  scheduleCheckInsForToday();
-
   // Set up power monitor for sleep/wake detection
   setupPowerMonitor();
 
-  // Reschedule check-ins at midnight
-  scheduleNextDayCheckIns();
+  // Schedule chunk start notifications (shows returning check-in if no timer running)
+  scheduleChunkStartsForToday();
 };
 
 const createWindow = (): void => {
@@ -117,31 +114,97 @@ function registerGoogleHandlers(): void {
   });
 }
 
+// Helper to find the currently active scheduled chunk based on time
+function getCurrentActiveChunk(): { id: string; name: string } | null {
+  try {
+    const db = getDatabase();
+    const chunks = db.select().from(schema.scheduledChunks).all();
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const currentTime = now.getHours() * 60 + now.getMinutes(); // Current time in minutes
+
+    // Get overrides for today
+    const overrides = db
+      .select()
+      .from(schema.chunkOverrides)
+      .all()
+      .filter((o) => o.date === todayStr);
+
+    for (const chunk of chunks) {
+      const recurrence = JSON.parse(chunk.recurrence) as RecurrenceRule;
+
+      // Check if chunk is within its date range
+      if (chunk.startDate && todayStr < chunk.startDate) continue;
+      if (chunk.endDate && todayStr > chunk.endDate) continue;
+
+      // Check if chunk is active today based on recurrence
+      if (!isChunkActiveOnDate(recurrence, now)) continue;
+
+      // Check for overrides
+      const override = overrides.find((o) => o.chunkId === chunk.id);
+      if (override?.action === 'skip') continue;
+
+      // Get effective times and name
+      const startTime = override?.modifiedStartTime || chunk.startTime;
+      const endTime = override?.modifiedEndTime || chunk.endTime;
+      const name = override?.modifiedName || chunk.name;
+
+      // Parse start and end times
+      const [startHour, startMin] = startTime.split(':').map(Number);
+      const [endHour, endMin] = endTime.split(':').map(Number);
+      const startMinutes = startHour * 60 + startMin;
+      const endMinutes = endHour * 60 + endMin;
+
+      // Check if current time is within this chunk
+      if (currentTime >= startMinutes && currentTime < endMinutes) {
+        return { id: chunk.id, name };
+      }
+    }
+  } catch (error) {
+    console.error('[getCurrentActiveChunk] Error:', error);
+  }
+  return null;
+}
+
 function registerCheckInHandlers(): void {
   ipcMain.handle('checkin:submit', async (_, data) => {
-    const db = getDatabase();
-    const now = new Date().toISOString();
+    try {
+      const db = getDatabase();
+      const now = new Date().toISOString();
 
-    db.insert(schema.checkIns)
-      .values({
-        id: uuidv4(),
-        ...data,
-        createdAt: now,
-      })
-      .run();
+      // Extract nextTask before inserting (it's not a database column)
+      const { nextTask, ...checkInData } = data;
 
-    // Save the current task for next check-in (use nextTask if transitioning, otherwise taskTag)
-    if (data.nextTask) {
-      setCurrentTask(data.nextTask);
-    } else if (data.taskTag) {
-      setCurrentTask(data.taskTag);
-    }
+      console.log('[CheckIn] Submitting check-in:', JSON.stringify(checkInData, null, 2));
 
-    closeCheckInPopup();
+      db.insert(schema.checkIns)
+        .values({
+          id: uuidv4(),
+          ...checkInData,
+          createdAt: now,
+        })
+        .run();
 
-    // If user selected a delayed timer, schedule it
-    if (data.delayedTimerMinutes && data.delayedTimerMinutes > 0) {
-      scheduleDelayedTimer(data.delayedTimerMinutes, 3); // 3 minute wind-down
+      console.log('[CheckIn] Check-in saved successfully');
+
+      // Save the current task for next check-in (use nextTask if transitioning, otherwise taskTag)
+      if (nextTask) {
+        setCurrentTask(nextTask);
+      } else if (data.taskTag) {
+        setCurrentTask(data.taskTag);
+      }
+
+      closeCheckInPopup();
+
+      // If user selected a delayed timer, schedule it
+      if (data.delayedTimerMinutes && data.delayedTimerMinutes > 0) {
+        scheduleDelayedTimer(data.delayedTimerMinutes, 3); // 3 minute wind-down
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('[CheckIn] Failed to submit check-in:', error);
+      return { success: false, error: String(error) };
     }
   });
 
@@ -162,9 +225,9 @@ function registerCheckInHandlers(): void {
     snoozeChunkEnd(minutes);
   });
 
-  // Refresh check-in schedule (called when chunks are updated)
+  // Refresh check-in schedule (no longer used - check-ins only happen on timer end)
   ipcMain.handle('checkin:refresh-schedule', async () => {
-    scheduleCheckInsForToday();
+    // No-op: scheduled chunk check-ins are disabled
   });
 
   // Get scheduled notifications for debugging
@@ -185,27 +248,32 @@ function registerCheckInHandlers(): void {
     };
   });
 
+  // Timer state tracking (for knowing whether to show returning check-in on chunk start)
+  ipcMain.handle('timer:setRunning', async (_, running: boolean) => {
+    setTimerRunning(running);
+  });
+
   // Timer end notification handlers
+  // All timers now trigger a check-in when they end
   ipcMain.handle('timerend:show', async (_, durationMinutes: number) => {
-    // If this was a returning timer, show a check-in instead of timer end popup
-    if (getIsReturningTimer()) {
-      setIsReturningTimer(false); // Reset the flag
-      // Show check-in popup with "Focus Session" as the chunk name
-      showCheckInPopup('returning-timer', 'Focus Session');
-    } else {
-      showTimerEndPopup(durationMinutes);
-    }
+    console.log('[TimerEnd] Timer ended after', durationMinutes, 'minutes - showing check-in');
+    setTimerRunning(false);
+
+    // Try to find current active chunk
+    const activeChunk = getCurrentActiveChunk();
+    const chunkName = activeChunk ? activeChunk.name : `${durationMinutes} min Focus`;
+    const chunkId = activeChunk ? activeChunk.id : 'timer-session';
+
+    showCheckInPopup(chunkId, chunkName);
   });
 
   ipcMain.handle('timerend:dismiss', async () => {
-    setIsReturningTimer(false); // Reset flag when timer is dismissed
     closeTimerEndPopup();
   });
 
   ipcMain.handle('timerend:restart', async () => {
     const duration = getTimerDuration();
     closeTimerEndPopup();
-    // Keep isReturningTimer as-is so restarted timer still triggers check-in
     return duration;
   });
 
@@ -222,6 +290,7 @@ function registerCheckInHandlers(): void {
     const mainWindow = getMainWindow();
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('timer:start', timerMinutes);
+      setTimerRunning(true);
     }
   });
 
@@ -231,13 +300,15 @@ function registerCheckInHandlers(): void {
     setCurrentTask(data.taskDescription);
     closeReturningCheckInPopup();
 
-    // Mark this as a returning timer so it triggers a check-in when done
-    setIsReturningTimer(true);
-
     // Send message to main window to start the timer
+    // When timer ends, it will automatically show a check-in (all timers do now)
     const mainWindow = getMainWindow();
+    setTimerRunning(true);
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('timer:start', data.timerMinutes);
+      console.log('[Returning] Started timer for', data.timerMinutes, 'minutes');
+    } else {
+      console.log('[Returning] WARNING: Main window not available to start timer');
     }
   });
 
@@ -248,20 +319,15 @@ function registerCheckInHandlers(): void {
   ipcMain.handle('returning:getCurrentTask', async () => {
     return getCurrentTask();
   });
-}
 
-function scheduleNextDayCheckIns(): void {
-  const now = new Date();
-  const tomorrow = new Date(now);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(0, 0, 0, 0);
+  // Set current task (used by timer page)
+  ipcMain.handle('task:setCurrent', async (_, task: string | null) => {
+    setCurrentTask(task);
+  });
 
-  const msUntilMidnight = tomorrow.getTime() - now.getTime();
-
-  setTimeout(() => {
-    scheduleCheckInsForToday();
-    scheduleNextDayCheckIns(); // Schedule for the next day
-  }, msUntilMidnight);
+  ipcMain.handle('task:getCurrent', async () => {
+    return getCurrentTask();
+  });
 }
 
 // This method will be called when Electron has finished initialization

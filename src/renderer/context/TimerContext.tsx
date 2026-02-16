@@ -81,6 +81,8 @@ export function TimerProvider({ children }: { children: React.ReactNode }): Reac
       setIsRunning(true);
       setIsComplete(false);
       notificationShownRef.current = false;
+      // Notify main process that timer is running
+      window.electronAPI.timer.setRunning(true);
     }
   }, [remainingSeconds]);
 
@@ -92,15 +94,22 @@ export function TimerProvider({ children }: { children: React.ReactNode }): Reac
     }
     setIsRunning(false);
     setEndTime(null);
+    // Notify main process that timer is paused
+    window.electronAPI.timer.setRunning(false);
   }, [isRunning, endTime]);
 
   const reset = useCallback(() => {
+    const wasRunning = isRunning;
     setIsRunning(false);
     setEndTime(null);
     setRemainingSeconds(totalSeconds);
     setIsComplete(false);
     notificationShownRef.current = false;
-  }, [totalSeconds]);
+    // Notify main process if timer was running
+    if (wasRunning) {
+      window.electronAPI.timer.setRunning(false);
+    }
+  }, [totalSeconds, isRunning]);
 
   const adjustTime = useCallback((deltaMinutes: number) => {
     if (isRunning) return;

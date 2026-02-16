@@ -223,6 +223,67 @@
   outline: none;
 }
 
+/* Star Goal */
+.star-goal-item {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  padding: 4px 0;
+  margin-top: var(--spacing-xs);
+}
+
+.star-goal-item .star-icon {
+  color: #e6a817;
+  margin-right: 4px;
+  font-size: 13px;
+}
+
+.star-goal-checkbox {
+  margin-right: 4px;
+  cursor: pointer;
+}
+
+.star-goal-text {
+  flex: 1;
+}
+
+.star-goal-item.completed .star-goal-text {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.star-goal-item:hover .remove-goal {
+  opacity: 1;
+}
+
+.add-star-goal {
+  display: flex;
+  align-items: center;
+  margin-top: var(--spacing-xs);
+}
+
+.add-star-goal .star-icon {
+  color: var(--text-muted);
+  margin-right: 4px;
+  font-size: 13px;
+}
+
+.add-star-goal input {
+  flex: 1;
+  padding: var(--spacing-xs);
+  font-size: 12px;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+}
+
+.add-star-goal input:focus {
+  border-style: solid;
+  border-color: var(--primary);
+  outline: none;
+}
+
 /* Time Blocks */
 .time-blocks {
   display: flex;

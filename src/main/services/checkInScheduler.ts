@@ -1,4 +1,5 @@
 import { BrowserWindow, powerMonitor } from 'electron';
+import { eq } from 'drizzle-orm';
 import { getDatabase, schema } from '../../database';
 import type { ScheduledChunk, RecurrenceRule } from '../../shared/types';
 import { isChunkActiveOnDate } from '../../shared/recurrence';
@@ -284,19 +285,49 @@ function calculateCheckInTimes(startTime: string, endTime: string, date: Date): 
   return checkInTimes;
 }
 
+function getCheckInTitle(fallback: string): string {
+  try {
+    const db = getDatabase();
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const hour = now.getHours();
+
+    const plan = db
+      .select()
+      .from(schema.weeklyPlanDays)
+      .where(eq(schema.weeklyPlanDays.date, todayStr))
+      .get();
+
+    if (plan) {
+      if (hour < 13 && plan.morningPlan) {
+        return plan.morningPlan;
+      }
+      if (hour >= 13 && hour < 18 && plan.afternoonPlan) {
+        return plan.afternoonPlan;
+      }
+    }
+  } catch (err) {
+    console.error('[CheckIn] Error getting weekly plan title:', err);
+  }
+  return fallback;
+}
+
 export function showCheckInPopup(chunkId: string, chunkName: string): void {
+  // Resolve title from weekly planner (falls back to chunkName)
+  const title = getCheckInTitle(chunkName);
+
   // Increment counter and determine if this is a break reminder check-in
   checkInCounter++;
   const showBreakReminder = checkInCounter % 2 === 0;
 
   if (checkInWindow && !checkInWindow.isDestroyed()) {
     checkInWindow.focus();
-    checkInWindow.webContents.send('checkin:show', chunkId, chunkName, showBreakReminder, currentTaskDescription);
+    checkInWindow.webContents.send('checkin:show', chunkId, title, showBreakReminder, currentTaskDescription);
     return;
   }
 
   currentChunkId = chunkId;
-  currentChunkName = chunkName;
+  currentChunkName = title;
 
   checkInWindow = new BrowserWindow({
     width: 400,
@@ -318,7 +349,7 @@ export function showCheckInPopup(chunkId: string, chunkName: string): void {
   checkInWindow.center();
 
   checkInWindow.webContents.on('did-finish-load', () => {
-    checkInWindow?.webContents.send('checkin:show', chunkId, chunkName, showBreakReminder, currentTaskDescription);
+    checkInWindow?.webContents.send('checkin:show', chunkId, title, showBreakReminder, currentTaskDescription);
   });
 
   checkInWindow.on('closed', () => {

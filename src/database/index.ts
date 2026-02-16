@@ -240,6 +240,18 @@ function initializeDatabase(): void {
   } catch {
     // Column already exists, ignore error
   }
+
+  // Migration: Add star_goal columns to weekly_plan_days
+  try {
+    sqliteDb.exec(`ALTER TABLE weekly_plan_days ADD COLUMN star_goal TEXT;`);
+  } catch {
+    // Column already exists, ignore error
+  }
+  try {
+    sqliteDb.exec(`ALTER TABLE weekly_plan_days ADD COLUMN star_goal_completed INTEGER;`);
+  } catch {
+    // Column already exists, ignore error
+  }
 }
 
 export function closeDatabase(): void {

@@ -118,6 +118,8 @@ export const weeklyPlanDays = sqliteTable('weekly_plan_days', {
   morningPlan: text('morning_plan'),
   lunchPlan: text('lunch_plan'),
   afternoonPlan: text('afternoon_plan'),
+  starGoal: text('star_goal'),
+  starGoalCompleted: integer('star_goal_completed', { mode: 'boolean' }),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 });

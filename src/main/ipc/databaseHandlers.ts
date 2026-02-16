@@ -307,7 +307,7 @@ export function registerDatabaseHandlers(): void {
     }
   });
 
-  ipcMain.handle('db:weekly-plan:updateField', async (_, date: string, field: string, value: string | string[] | null) => {
+  ipcMain.handle('db:weekly-plan:updateField', async (_, date: string, field: string, value: string | string[] | boolean | null) => {
     const now = new Date().toISOString();
     const existing = db.select().from(schema.weeklyPlanDays).where(eq(schema.weeklyPlanDays.date, date)).get();
 
@@ -343,6 +343,16 @@ export function registerDatabaseHandlers(): void {
           .set({ afternoonPlan: value as string | null, updatedAt: now })
           .where(eq(schema.weeklyPlanDays.id, existing.id))
           .run();
+      } else if (field === 'starGoal') {
+        db.update(schema.weeklyPlanDays)
+          .set({ starGoal: value as string | null, updatedAt: now })
+          .where(eq(schema.weeklyPlanDays.id, existing.id))
+          .run();
+      } else if (field === 'starGoalCompleted') {
+        db.update(schema.weeklyPlanDays)
+          .set({ starGoalCompleted: value as boolean, updatedAt: now })
+          .where(eq(schema.weeklyPlanDays.id, existing.id))
+          .run();
       }
       const updated = db.select().from(schema.weeklyPlanDays).where(eq(schema.weeklyPlanDays.id, existing.id)).get();
       return { ...updated, goals: updated?.goals ? JSON.parse(updated.goals) : [] };
@@ -356,6 +366,8 @@ export function registerDatabaseHandlers(): void {
         morningPlan: field === 'morningPlan' ? (value as string | null) : null,
         lunchPlan: field === 'lunchPlan' ? (value as string | null) : null,
         afternoonPlan: field === 'afternoonPlan' ? (value as string | null) : null,
+        starGoal: field === 'starGoal' ? (value as string | null) : null,
+        starGoalCompleted: field === 'starGoalCompleted' ? (value as boolean) : false,
         createdAt: now,
         updatedAt: now,
       };

@@ -24,6 +24,10 @@ function SettingsPage(): React.ReactElement {
   const [scheduledNotifications, setScheduledNotifications] = useState<ScheduledNotifications | null>(null);
   const [showDebug, setShowDebug] = useState(false);
 
+  // Website Blocker state
+  const [blocklist, setBlocklist] = useState('');
+  const [blockerSaved, setBlockerSaved] = useState(false);
+
   const checkAuthStatus = async () => {
     try {
       const status = await window.electronAPI.google.getStatus();
@@ -43,7 +47,28 @@ function SettingsPage(): React.ReactElement {
 
   useEffect(() => {
     checkAuthStatus();
+    loadBlockerSettings();
   }, []);
+
+  const loadBlockerSettings = async () => {
+    try {
+      const bl = await window.electronAPI.settings.get('website-blocker-blocklist');
+      if (bl) setBlocklist(JSON.parse(bl).join('\n'));
+    } catch (error) {
+      console.error('Failed to load blocker settings:', error);
+    }
+  };
+
+  const saveBlockerSettings = async () => {
+    try {
+      const blDomains = blocklist.split('\n').map((d) => d.trim()).filter(Boolean);
+      await window.electronAPI.settings.set('website-blocker-blocklist', JSON.stringify(blDomains));
+      setBlockerSaved(true);
+      setTimeout(() => setBlockerSaved(false), 2000);
+    } catch (error) {
+      console.error('Failed to save blocker settings:', error);
+    }
+  };
 
   const handleConnect = async () => {
     setConnecting(true);
@@ -201,6 +226,31 @@ function SettingsPage(): React.ReactElement {
           </div>
         </section>
       )}
+
+      <section className="settings-section card">
+        <h2 className="section-title">Website Blocker</h2>
+        <p className="section-description">
+          Block distracting websites during focus sessions. When you start a timer, you'll choose whether to block sites.
+        </p>
+
+        <div className="blocker-lists">
+          <div className="blocker-list-group">
+            <label className="blocker-label">Blocked Sites</label>
+            <p className="blocker-hint">Sites to block during focus sessions (one per line)</p>
+            <textarea
+              className="blocker-textarea"
+              placeholder={"facebook.com\nreddit.com\ntwitter.com"}
+              value={blocklist}
+              onChange={(e) => setBlocklist(e.target.value)}
+              rows={5}
+            />
+          </div>
+
+          <button className="btn btn-primary" onClick={saveBlockerSettings}>
+            {blockerSaved ? 'Saved!' : 'Save List'}
+          </button>
+        </div>
+      </section>
 
       <section className="settings-section card">
         <h2 className="section-title">About</h2>

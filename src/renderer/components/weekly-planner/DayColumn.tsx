@@ -7,7 +7,7 @@ interface DayColumnProps {
   date: Date;
   plan?: WeeklyPlanDay;
   meetings: GoogleCalendarEvent[];
-  onFieldUpdate: (field: string, value: string | string[] | null) => void;
+  onFieldUpdate: (field: string, value: string | string[] | boolean | null) => void;
 }
 
 const HEADLINE_COLORS = [
@@ -88,6 +88,26 @@ function DayColumn({ date, plan, meetings, onFieldUpdate }: DayColumnProps): Rea
   const removeGoal = (index: number) => {
     const updatedGoals = goals.filter((_, i) => i !== index);
     onFieldUpdate('goals', updatedGoals);
+  };
+
+  // Star goal handling
+  const [newStarGoal, setNewStarGoal] = useState('');
+
+  const addStarGoal = () => {
+    if (newStarGoal.trim()) {
+      onFieldUpdate('starGoal', newStarGoal.trim());
+      onFieldUpdate('starGoalCompleted', false);
+      setNewStarGoal('');
+    }
+  };
+
+  const removeStarGoal = () => {
+    onFieldUpdate('starGoal', null);
+    onFieldUpdate('starGoalCompleted', false);
+  };
+
+  const toggleStarGoal = () => {
+    onFieldUpdate('starGoalCompleted', !plan?.starGoalCompleted);
   };
 
   const handleColorSelect = (e: React.MouseEvent, color: string) => {
@@ -213,6 +233,34 @@ function DayColumn({ date, plan, meetings, onFieldUpdate }: DayColumnProps): Rea
               }}
             />
           </div>
+
+          {/* Star Goal */}
+          {plan?.starGoal ? (
+            <div className={`star-goal-item ${plan.starGoalCompleted ? 'completed' : ''}`}>
+              <input
+                type="checkbox"
+                className="star-goal-checkbox"
+                checked={!!plan.starGoalCompleted}
+                onChange={toggleStarGoal}
+              />
+              <span className="star-icon">★</span>
+              <span className="star-goal-text">{plan.starGoal}</span>
+              <button className="remove-goal" onClick={removeStarGoal}>×</button>
+            </div>
+          ) : (
+            <div className="add-star-goal">
+              <span className="star-icon">★</span>
+              <input
+                type="text"
+                placeholder="Set star goal..."
+                value={newStarGoal}
+                onChange={(e) => setNewStarGoal(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') addStarGoal();
+                }}
+              />
+            </div>
+          )}
         </div>
 
         {/* Time Blocks */}

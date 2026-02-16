@@ -96,6 +96,8 @@ export function TimerProvider({ children }: { children: React.ReactNode }): Reac
     setEndTime(null);
     // Notify main process that timer is paused
     window.electronAPI.timer.setRunning(false);
+    // Disable website blocking on pause
+    window.electronAPI.websiteBlocker.disable().catch(() => {});
   }, [isRunning, endTime]);
 
   const reset = useCallback(() => {
@@ -108,6 +110,8 @@ export function TimerProvider({ children }: { children: React.ReactNode }): Reac
     // Notify main process if timer was running
     if (wasRunning) {
       window.electronAPI.timer.setRunning(false);
+      // Disable website blocking on reset
+      window.electronAPI.websiteBlocker.disable().catch(() => {});
     }
   }, [totalSeconds, isRunning]);
 

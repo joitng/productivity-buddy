@@ -168,3 +168,48 @@
 .debug-list li strong {
   color: var(--text-primary);
 }
+
+/* Website Blocker */
+.blocker-lists {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.blocker-list-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.blocker-label {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.blocker-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.blocker-textarea {
+  width: 100%;
+  padding: var(--spacing-sm);
+  font-size: 13px;
+  font-family: var(--font-mono);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  resize: vertical;
+}
+
+.blocker-textarea:focus {
+  border-color: var(--primary);
+  outline: none;
+}
+
+.blocker-textarea::placeholder {
+  color: var(--text-muted);
+}

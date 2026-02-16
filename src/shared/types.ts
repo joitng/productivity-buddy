@@ -139,9 +139,14 @@ export interface WeeklyPlanDay {
   morningPlan?: string | null;
   lunchPlan?: string | null;
   afternoonPlan?: string | null;
+  starGoal?: string | null;
+  starGoalCompleted?: boolean;
   createdAt: string;
   updatedAt: string;
 }
+
+// Website Blocker
+export type WebsiteBlockerMode = 'blocklist' | 'whitelist' | 'none';
 
 // Weekly Tasks
 export type WeeklyTaskCategory = 'active' | 'focus';

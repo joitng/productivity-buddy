@@ -54,7 +54,7 @@ function WeeklyPlannerPage(): React.ReactElement {
     loadData();
   }, [loadData]);
 
-  const handleFieldUpdate = async (date: string, field: string, value: string | string[] | null) => {
+  const handleFieldUpdate = async (date: string, field: string, value: string | string[] | boolean | null) => {
     try {
       const updated = await window.electronAPI.weeklyPlan.updateField(date, field, value);
       setPlanDays((prev) => new Map(prev).set(date, updated));

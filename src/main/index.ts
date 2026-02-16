@@ -22,11 +22,13 @@ for (const envPath of envPaths) {
 import { v4 as uuidv4 } from 'uuid';
 import { createMainWindow, getMainWindow } from './windows/mainWindow';
 import { registerDatabaseHandlers } from './ipc/databaseHandlers';
+import { eq } from 'drizzle-orm';
 import { getDatabase, closeDatabase, schema } from '../database';
 import { startAuthFlow, getAuthStatus, logout } from './services/googleAuth';
 import { syncCalendars, startAutoSync, stopAutoSync } from './services/googleCalendar';
 import { isChunkActiveOnDate } from '../shared/recurrence';
 import type { RecurrenceRule } from '../shared/types';
+import { enableBlocking, disableBlocking, isBlocking } from './services/websiteBlocker';
 import {
   showCheckInPopup,
   closeCheckInPopup,
@@ -258,6 +260,8 @@ function registerCheckInHandlers(): void {
   ipcMain.handle('timerend:show', async (_, durationMinutes: number) => {
     console.log('[TimerEnd] Timer ended after', durationMinutes, 'minutes - showing check-in');
     setTimerRunning(false);
+    // Disable website blocking when timer ends
+    disableBlocking().catch((err) => console.error('[WebsiteBlocker] Cleanup error:', err));
 
     // Try to find current active chunk
     const activeChunk = getCurrentActiveChunk();
@@ -275,6 +279,36 @@ function registerCheckInHandlers(): void {
     const duration = getTimerDuration();
     closeTimerEndPopup();
     return duration;
+  });
+
+  // Website blocker handlers
+  ipcMain.handle('website-blocker:enable', async () => {
+    try {
+      const db = getDatabase();
+      const blocklistSetting = db.select().from(schema.appSettings).where(
+        eq(schema.appSettings.key, 'website-blocker-blocklist')
+      ).get();
+
+      const debugRaw = JSON.stringify(blocklistSetting);
+      const blocklist: string[] = blocklistSetting ? JSON.parse(blocklistSetting.value) : [];
+
+      if (blocklist.length === 0) {
+        return { success: true, debug: { raw: debugRaw, parsed: blocklist, skipped: true } };
+      }
+
+      const result = await enableBlocking(blocklist);
+      return { ...result, debug: { raw: debugRaw, parsed: blocklist } };
+    } catch (err) {
+      return { success: false, error: (err as Error).message, debug: { exception: true } };
+    }
+  });
+
+  ipcMain.handle('website-blocker:disable', async () => {
+    return disableBlocking();
+  });
+
+  ipcMain.handle('website-blocker:status', async () => {
+    return { blocking: isBlocking() };
   });
 
   // Wind-down end notification handlers
@@ -353,5 +387,7 @@ app.on('activate', () => {
 app.on('before-quit', () => {
   clearAllScheduledCheckIns();
   stopAutoSync();
+  // Clean up website blocking on quit
+  disableBlocking().catch((err) => console.error('[WebsiteBlocker] Quit cleanup error:', err));
   closeDatabase();
 });

@@ -87,6 +87,16 @@ const electronAPI = {
     set: (key: string, value: string): Promise<void> => ipcRenderer.invoke('db:settings:set', key, value),
   },
 
+  // Website Blocker
+  websiteBlocker: {
+    enable: (): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('website-blocker:enable'),
+    disable: (): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('website-blocker:disable'),
+    status: (): Promise<{ blocking: boolean }> =>
+      ipcRenderer.invoke('website-blocker:status'),
+  },
+
   // Google Auth
   google: {
     startAuth: (): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('google:auth:start'),
@@ -185,7 +195,7 @@ const electronAPI = {
       ipcRenderer.invoke('db:weekly-plan:getByDateRange', startDate, endDate),
     upsert: (day: Omit<WeeklyPlanDay, 'id' | 'createdAt' | 'updatedAt'>): Promise<WeeklyPlanDay> =>
       ipcRenderer.invoke('db:weekly-plan:upsert', day),
-    updateField: (date: string, field: string, value: string | string[] | null): Promise<WeeklyPlanDay> =>
+    updateField: (date: string, field: string, value: string | string[] | boolean | null): Promise<WeeklyPlanDay> =>
       ipcRenderer.invoke('db:weekly-plan:updateField', date, field, value),
   },
 

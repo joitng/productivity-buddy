@@ -16,23 +16,54 @@ function TimerPage(): React.ReactElement {
   } = useTimer();
 
   const [currentTask, setCurrentTask] = useState<string>('');
+  const [showBlockerModal, setShowBlockerModal] = useState(false);
+  const [hasBlockerLists, setHasBlockerLists] = useState(false);
 
-  // Load the current task on mount
+  // Load the current task and check if blocker lists are configured
   useEffect(() => {
     window.electronAPI.task.getCurrent().then((task) => {
       if (task) {
         setCurrentTask(task);
       }
     });
+    // Check if blocklist is configured
+    window.electronAPI.settings.get('website-blocker-blocklist').then((bl) => {
+      setHasBlockerLists(bl ? JSON.parse(bl).length > 0 : false);
+    });
   }, []);
+
+  const startWithBlocking = useCallback(async (block: boolean) => {
+    setShowBlockerModal(false);
+    console.log('[TimerPage] startWithBlocking called, block:', block);
+    if (block) {
+      try {
+        console.log('[TimerPage] Calling websiteBlocker.enable()...');
+        const result = await window.electronAPI.websiteBlocker.enable();
+        console.log('[TimerPage] Blocker enable result:', result);
+        if (!result.success) {
+          console.error('Failed to enable blocking:', result.error);
+        }
+      } catch (err) {
+        console.error('Blocker error:', err);
+      }
+    }
+    if (currentTask.trim()) {
+      window.electronAPI.task.setCurrent(currentTask.trim());
+    }
+    start();
+  }, [currentTask, start]);
 
   // Wrapped start that saves task first
   const handleStart = useCallback(() => {
     if (currentTask.trim()) {
       window.electronAPI.task.setCurrent(currentTask.trim());
     }
-    start();
-  }, [currentTask, start]);
+    if (hasBlockerLists) {
+      setShowBlockerModal(true);
+    } else {
+      start();
+    }
+  }, [currentTask, start, hasBlockerLists]);
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -155,6 +186,29 @@ function TimerPage(): React.ReactElement {
           ))}
         </div>
       </div>
+
+      {showBlockerModal && (
+        <div className="blocker-modal-overlay" onClick={() => setShowBlockerModal(false)}>
+          <div className="blocker-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="blocker-modal-title">Block websites during this session?</h3>
+            <div className="blocker-modal-options">
+              <button
+                className="blocker-option"
+                onClick={() => startWithBlocking(true)}
+              >
+                <span className="blocker-option-label">Block listed sites</span>
+                <span className="blocker-option-desc">Block sites on your blocklist during this session</span>
+              </button>
+              <button
+                className="blocker-option blocker-option-skip"
+                onClick={() => startWithBlocking(false)}
+              >
+                <span className="blocker-option-label">No blocking</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

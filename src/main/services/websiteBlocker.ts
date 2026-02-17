@@ -57,7 +57,11 @@ function expandDomains(domains: string[]): string[] {
 
 function buildHostsEntries(domains: string[]): string {
   const expanded = expandDomains(domains);
-  const lines = expanded.map((d) => `127.0.0.1 ${d}`);
+  const lines: string[] = [];
+  for (const d of expanded) {
+    lines.push(`0.0.0.0 ${d}`);
+    lines.push(`::0 ${d}`);
+  }
   return `${BEGIN_MARKER}\n${lines.join('\n')}\n${END_MARKER}`;
 }
 

@@ -96,8 +96,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }): Reac
     setEndTime(null);
     // Notify main process that timer is paused
     window.electronAPI.timer.setRunning(false);
-    // Disable website blocking on pause
-    window.electronAPI.websiteBlocker.disable().catch(() => {});
+    // Keep website blocking active during pause so browser DNS cache isn't invalidated
   }, [isRunning, endTime]);
 
   const reset = useCallback(() => {

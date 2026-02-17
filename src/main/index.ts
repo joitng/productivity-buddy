@@ -283,24 +283,18 @@ function registerCheckInHandlers(): void {
 
   // Website blocker handlers
   ipcMain.handle('website-blocker:enable', async () => {
-    try {
-      const db = getDatabase();
-      const blocklistSetting = db.select().from(schema.appSettings).where(
-        eq(schema.appSettings.key, 'website-blocker-blocklist')
-      ).get();
+    const db = getDatabase();
+    const blocklistSetting = db.select().from(schema.appSettings).where(
+      eq(schema.appSettings.key, 'website-blocker-blocklist')
+    ).get();
 
-      const debugRaw = JSON.stringify(blocklistSetting);
-      const blocklist: string[] = blocklistSetting ? JSON.parse(blocklistSetting.value) : [];
+    const blocklist: string[] = blocklistSetting ? JSON.parse(blocklistSetting.value) : [];
 
-      if (blocklist.length === 0) {
-        return { success: true, debug: { raw: debugRaw, parsed: blocklist, skipped: true } };
-      }
-
-      const result = await enableBlocking(blocklist);
-      return { ...result, debug: { raw: debugRaw, parsed: blocklist } };
-    } catch (err) {
-      return { success: false, error: (err as Error).message, debug: { exception: true } };
+    if (blocklist.length === 0) {
+      return { success: true };
     }
+
+    return enableBlocking(blocklist);
   });
 
   ipcMain.handle('website-blocker:disable', async () => {

@@ -34,12 +34,9 @@ function TimerPage(): React.ReactElement {
 
   const startWithBlocking = useCallback(async (block: boolean) => {
     setShowBlockerModal(false);
-    console.log('[TimerPage] startWithBlocking called, block:', block);
     if (block) {
       try {
-        console.log('[TimerPage] Calling websiteBlocker.enable()...');
         const result = await window.electronAPI.websiteBlocker.enable();
-        console.log('[TimerPage] Blocker enable result:', result);
         if (!result.success) {
           console.error('Failed to enable blocking:', result.error);
         }

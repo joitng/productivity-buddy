@@ -281,20 +281,30 @@ function registerCheckInHandlers(): void {
     return duration;
   });
 
+  // Website blocker helpers
+  const enableBlocklistFromSettings = async (): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const db = getDatabase();
+      const blocklistSetting = db.select().from(schema.appSettings).where(
+        eq(schema.appSettings.key, 'website-blocker-blocklist')
+      ).get();
+
+      const blocklist: string[] = blocklistSetting ? JSON.parse(blocklistSetting.value) : [];
+
+      if (blocklist.length === 0) {
+        return { success: true };
+      }
+
+      return enableBlocking(blocklist);
+    } catch (err) {
+      console.error('[WebsiteBlocker] Failed to enable:', err);
+      return { success: false, error: (err as Error).message };
+    }
+  };
+
   // Website blocker handlers
   ipcMain.handle('website-blocker:enable', async () => {
-    const db = getDatabase();
-    const blocklistSetting = db.select().from(schema.appSettings).where(
-      eq(schema.appSettings.key, 'website-blocker-blocklist')
-    ).get();
-
-    const blocklist: string[] = blocklistSetting ? JSON.parse(blocklistSetting.value) : [];
-
-    if (blocklist.length === 0) {
-      return { success: true };
-    }
-
-    return enableBlocking(blocklist);
+    return enableBlocklistFromSettings();
   });
 
   ipcMain.handle('website-blocker:disable', async () => {
@@ -314,6 +324,9 @@ function registerCheckInHandlers(): void {
     const timerMinutes = getPendingTimerDuration();
     closeWinddownEndPopup();
 
+    // Enable website blocking for the new session
+    await enableBlocklistFromSettings();
+
     // Send message to main window to start the timer
     const mainWindow = getMainWindow();
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -327,6 +340,9 @@ function registerCheckInHandlers(): void {
     // Save the current task for future check-ins
     setCurrentTask(data.taskDescription);
     closeReturningCheckInPopup();
+
+    // Enable website blocking for the new session
+    await enableBlocklistFromSettings();
 
     // Send message to main window to start the timer
     // When timer ends, it will automatically show a check-in (all timers do now)

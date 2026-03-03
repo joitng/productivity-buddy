@@ -153,6 +153,13 @@ const electronAPI = {
     setRunning: (running: boolean): Promise<void> => ipcRenderer.invoke('timer:setRunning', running),
   },
 
+  // Navigation signals from main process
+  navigate: {
+    onTimer: (callback: () => void): void => {
+      ipcRenderer.on('navigate:timer', () => callback());
+    },
+  },
+
   // Task tracking (for timer page to note current task)
   task: {
     setCurrent: (task: string | null): Promise<void> => ipcRenderer.invoke('task:setCurrent', task),
@@ -165,6 +172,12 @@ const electronAPI = {
       ipcRenderer.invoke('returning:submit', data),
     dismiss: (): Promise<void> => ipcRenderer.invoke('returning:dismiss'),
     getCurrentTask: (): Promise<string | null> => ipcRenderer.invoke('returning:getCurrentTask'),
+    getSuggestedTimes: (): Promise<Array<{ label: string; timestamp: number }>> =>
+      ipcRenderer.invoke('returning:getSuggestedTimes'),
+    reschedule: (timestamp: number): Promise<void> =>
+      ipcRenderer.invoke('returning:reschedule', timestamp),
+    resize: (height: number): Promise<void> =>
+      ipcRenderer.invoke('returning:resize', height),
     onShow: (callback: (previousTask: string | null) => void): void => {
       ipcRenderer.on('returning:show', (_, previousTask) => callback(previousTask));
     },

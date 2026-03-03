@@ -1,7 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
-import CalendarPage from './components/calendar/CalendarPage';
-import ChunksPage from './components/chunks/ChunksPage';
 import SettingsPage from './components/settings/SettingsPage';
 import AnalyticsPage from './components/AnalyticsPage';
 import TimerPage from './components/TimerPage';
@@ -10,17 +8,19 @@ import WeeklyPlannerPage from './components/weekly-planner/WeeklyPlannerPage';
 import { TimerProvider } from './context/TimerContext';
 import './App.css';
 
-type Page = 'calendar' | 'chunks' | 'settings' | 'analytics' | 'timer' | 'dopamine-menu' | 'weekly-planner';
+type Page = 'settings' | 'analytics' | 'timer' | 'dopamine-menu' | 'weekly-planner';
 
 function App(): React.ReactElement {
   const [currentPage, setCurrentPage] = useState<Page>('weekly-planner');
 
+  useEffect(() => {
+    window.electronAPI.navigate.onTimer(() => {
+      setCurrentPage('timer');
+    });
+  }, []);
+
   const renderPage = (): React.ReactElement => {
     switch (currentPage) {
-      case 'calendar':
-        return <CalendarPage />;
-      case 'chunks':
-        return <ChunksPage />;
       case 'settings':
         return <SettingsPage />;
       case 'analytics':

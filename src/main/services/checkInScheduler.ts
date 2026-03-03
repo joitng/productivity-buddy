@@ -1,5 +1,5 @@
 import { BrowserWindow, powerMonitor } from 'electron';
-import { eq } from 'drizzle-orm';
+import { eq, and, gt, lt, or, isNull } from 'drizzle-orm';
 import { getDatabase, schema } from '../../database';
 import type { ScheduledChunk, RecurrenceRule } from '../../shared/types';
 import { isChunkActiveOnDate } from '../../shared/recurrence';
@@ -39,6 +39,7 @@ let lastSleepTime: number | null = null;
 
 // Returning check-in popup
 let returningCheckInWindow: BrowserWindow | null = null;
+let scheduledReturningCheckIn: NodeJS.Timeout | null = null;
 
 // Track if timer was started from returning check-in (should trigger check-in when done)
 let isReturningTimer: boolean = false;
@@ -788,4 +789,77 @@ export function closeReturningCheckInPopup(): void {
     returningCheckInWindow.close();
   }
   returningCheckInWindow = null;
+}
+
+export function resizeReturningCheckInPopup(height: number): void {
+  if (returningCheckInWindow && !returningCheckInWindow.isDestroyed()) {
+    returningCheckInWindow.setSize(400, height);
+    returningCheckInWindow.center();
+  }
+}
+
+export function rescheduleReturningCheckIn(timestamp: number): void {
+  // Cancel any existing scheduled reminder
+  if (scheduledReturningCheckIn) {
+    clearTimeout(scheduledReturningCheckIn);
+    scheduledReturningCheckIn = null;
+  }
+
+  // Close the current popup
+  closeReturningCheckInPopup();
+
+  const delay = timestamp - Date.now();
+  if (delay <= 0) return;
+
+  console.log(`[ReturningCheckIn] Rescheduled for ${new Date(timestamp).toLocaleTimeString()}`);
+  scheduledReturningCheckIn = setTimeout(() => {
+    scheduledReturningCheckIn = null;
+    showReturningCheckInPopup();
+  }, delay);
+}
+
+export interface RescheduleSuggestion {
+  label: string;
+  timestamp: number;
+}
+
+export async function getSuggestedRescheduleTimes(): Promise<RescheduleSuggestion[]> {
+  const db = getDatabase();
+  const now = new Date();
+  const fourHoursFromNow = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+
+  const nowISO = now.toISOString();
+  const fourHoursISO = fourHoursFromNow.toISOString();
+
+  try {
+    const events = await db
+      .select()
+      .from(schema.googleCalendarEvents)
+      .where(
+        and(
+          gt(schema.googleCalendarEvents.endTime, nowISO),
+          lt(schema.googleCalendarEvents.endTime, fourHoursISO),
+          eq(schema.googleCalendarEvents.isAllDay, false),
+          or(
+            eq(schema.googleCalendarEvents.responseStatus, 'accepted'),
+            isNull(schema.googleCalendarEvents.responseStatus)
+          )
+        )
+      )
+      .orderBy(schema.googleCalendarEvents.endTime)
+      .limit(3);
+
+    return events.map((event) => {
+      const endTime = new Date(event.endTime);
+      const suggestionTime = new Date(endTime.getTime() + 5 * 60 * 1000);
+      const timeLabel = suggestionTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      return {
+        label: `After "${event.title}" (${timeLabel})`,
+        timestamp: suggestionTime.getTime(),
+      };
+    });
+  } catch (err) {
+    console.error('[ReturningCheckIn] Failed to fetch suggested times:', err);
+    return [];
+  }
 }

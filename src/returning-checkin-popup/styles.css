@@ -214,3 +214,119 @@ html, body, #root {
   background: var(--bg-tertiary);
   color: var(--text-primary);
 }
+
+/* Reschedule panel */
+.reschedule-panel {
+  border-top: 1px solid var(--border-color);
+  padding-top: var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.reschedule-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.suggestions-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.suggestion-btn {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.suggestion-btn:hover {
+  border-color: var(--primary);
+  background: var(--bg-secondary);
+  color: var(--primary);
+}
+
+.reschedule-custom {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.reschedule-custom-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.time-input-row {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: center;
+}
+
+.time-input {
+  flex: 1;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.time-input:focus {
+  border-color: var(--primary);
+}
+
+.reschedule-cancel-btn {
+  align-self: flex-start;
+  font-size: 13px;
+  padding: var(--spacing-xs) var(--spacing-sm);
+}
+
+/* Reschedule confirmed state */
+.reschedule-confirmed {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-lg);
+}
+
+.reschedule-confirmed-icon {
+  width: 48px;
+  height: 48px;
+  background: var(--success);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.reschedule-confirmed-text {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.reschedule-confirmed-time {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}

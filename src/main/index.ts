@@ -20,7 +20,7 @@ for (const envPath of envPaths) {
   if (!result.error) break;
 }
 import { v4 as uuidv4 } from 'uuid';
-import { createMainWindow, getMainWindow } from './windows/mainWindow';
+import { createMainWindow, getMainWindow, showMainWindow } from './windows/mainWindow';
 import { registerDatabaseHandlers } from './ipc/databaseHandlers';
 import { eq } from 'drizzle-orm';
 import { getDatabase, closeDatabase, schema } from '../database';
@@ -50,6 +50,9 @@ import {
   closeReturningCheckInPopup,
   setTimerRunning,
   scheduleChunkStartsForToday,
+  rescheduleReturningCheckIn,
+  getSuggestedRescheduleTimes,
+  resizeReturningCheckInPopup,
 } from './services/checkInScheduler';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -350,6 +353,8 @@ function registerCheckInHandlers(): void {
     setTimerRunning(true);
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('timer:start', data.timerMinutes);
+      mainWindow.webContents.send('navigate:timer');
+      showMainWindow();
       console.log('[Returning] Started timer for', data.timerMinutes, 'minutes');
     } else {
       console.log('[Returning] WARNING: Main window not available to start timer');
@@ -362,6 +367,18 @@ function registerCheckInHandlers(): void {
 
   ipcMain.handle('returning:getCurrentTask', async () => {
     return getCurrentTask();
+  });
+
+  ipcMain.handle('returning:getSuggestedTimes', async () => {
+    return getSuggestedRescheduleTimes();
+  });
+
+  ipcMain.handle('returning:reschedule', async (_, timestamp: number) => {
+    rescheduleReturningCheckIn(timestamp);
+  });
+
+  ipcMain.handle('returning:resize', async (_, height: number) => {
+    resizeReturningCheckInPopup(height);
   });
 
   // Set current task (used by timer page)

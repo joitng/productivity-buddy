@@ -54,6 +54,10 @@ function ReturningCheckInPopup(): React.ReactElement {
     await window.electronAPI.returning.dismiss();
   };
 
+  const handleSnooze = async () => {
+    await window.electronAPI.returning.reschedule(Date.now() + 5 * 60 * 1000);
+  };
+
   const handleRemindLater = async () => {
     const fetched = await window.electronAPI.returning.getSuggestedTimes();
     setSuggestions(fetched);
@@ -214,6 +218,9 @@ function ReturningCheckInPopup(): React.ReactElement {
       <div className="popup-footer">
         <button className="btn btn-ghost" onClick={handleDismiss}>
           Skip
+        </button>
+        <button className="btn btn-ghost" onClick={handleSnooze}>
+          Snooze 5 min
         </button>
         {!showReschedule && (
           <button className="btn btn-ghost" onClick={handleRemindLater}>

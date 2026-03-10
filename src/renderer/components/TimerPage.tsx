@@ -18,6 +18,7 @@ function TimerPage(): React.ReactElement {
   const [currentTask, setCurrentTask] = useState<string>('');
   const [showBlockerModal, setShowBlockerModal] = useState(false);
   const [hasBlockerLists, setHasBlockerLists] = useState(false);
+  const [blockerForRunningTimer, setBlockerForRunningTimer] = useState(false);
 
   // Load the current task and check if blocker lists are configured
   useEffect(() => {
@@ -34,6 +35,7 @@ function TimerPage(): React.ReactElement {
 
   const startWithBlocking = useCallback(async (block: boolean) => {
     setShowBlockerModal(false);
+    setBlockerForRunningTimer(false);
     if (block) {
       try {
         const result = await window.electronAPI.websiteBlocker.enable();
@@ -49,6 +51,32 @@ function TimerPage(): React.ReactElement {
     }
     start();
   }, [currentTask, start]);
+
+  // Used when timer is already running (from a popup) — just toggles blocker, no start()
+  const handleBlockerPromptResponse = useCallback(async (block: boolean) => {
+    setShowBlockerModal(false);
+    setBlockerForRunningTimer(false);
+    if (block) {
+      try {
+        const result = await window.electronAPI.websiteBlocker.enable();
+        if (!result.success) {
+          console.error('Failed to enable blocking:', result.error);
+        }
+      } catch (err) {
+        console.error('Blocker error:', err);
+      }
+    }
+  }, []);
+
+  // Listen for blocker prompt from main process (after popup-initiated timer starts)
+  useEffect(() => {
+    window.electronAPI.blocker.onPrompt(() => {
+      if (hasBlockerLists) {
+        setBlockerForRunningTimer(true);
+        setShowBlockerModal(true);
+      }
+    });
+  }, [hasBlockerLists]);
 
   // Wrapped start that saves task first
   const handleStart = useCallback(() => {
@@ -191,14 +219,14 @@ function TimerPage(): React.ReactElement {
             <div className="blocker-modal-options">
               <button
                 className="blocker-option"
-                onClick={() => startWithBlocking(true)}
+                onClick={() => blockerForRunningTimer ? handleBlockerPromptResponse(true) : startWithBlocking(true)}
               >
                 <span className="blocker-option-label">Block listed sites</span>
                 <span className="blocker-option-desc">Block sites on your blocklist during this session</span>
               </button>
               <button
                 className="blocker-option blocker-option-skip"
-                onClick={() => startWithBlocking(false)}
+                onClick={() => blockerForRunningTimer ? handleBlockerPromptResponse(false) : startWithBlocking(false)}
               >
                 <span className="blocker-option-label">No blocking</span>
               </button>

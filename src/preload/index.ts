@@ -107,7 +107,7 @@ const electronAPI = {
 
   // Check-in popup
   checkIn: {
-    submit: (data: Omit<CheckIn, 'id' | 'createdAt'> & { nextTask?: string }): Promise<{ success: boolean; error?: string }> =>
+    submit: (data: Omit<CheckIn, 'id' | 'createdAt'> & { nextTask?: string; wantsWinddown?: boolean }): Promise<{ success: boolean; error?: string }> =>
       ipcRenderer.invoke('checkin:submit', data),
     snooze: (): Promise<void> => ipcRenderer.invoke('checkin:snooze'),
     close: (): Promise<void> => ipcRenderer.invoke('checkin:close'),
@@ -139,6 +139,7 @@ const electronAPI = {
   // Wind-down end notification popup (for delayed timer)
   winddownEnd: {
     dismiss: (): Promise<void> => ipcRenderer.invoke('winddownend:dismiss'),
+    snooze: (): Promise<void> => ipcRenderer.invoke('winddownend:snooze'),
     startTimer: (): Promise<void> => ipcRenderer.invoke('winddownend:startTimer'),
     onShow: (callback: (timerMinutes: number) => void): void => {
       ipcRenderer.on('winddownend:show', (_, timerMinutes) => callback(timerMinutes));
@@ -157,6 +158,13 @@ const electronAPI = {
   navigate: {
     onTimer: (callback: () => void): void => {
       ipcRenderer.on('navigate:timer', () => callback());
+    },
+  },
+
+  // Website blocker prompt (from main process after popup-initiated timer start)
+  blocker: {
+    onPrompt: (callback: () => void): void => {
+      ipcRenderer.on('blocker:prompt', () => callback());
     },
   },
 

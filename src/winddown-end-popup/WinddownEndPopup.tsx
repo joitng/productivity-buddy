@@ -13,6 +13,10 @@ function WinddownEndPopup(): React.ReactElement {
     await window.electronAPI.winddownEnd.dismiss();
   };
 
+  const handleSnooze = async () => {
+    await window.electronAPI.winddownEnd.snooze();
+  };
+
   const handleStartTimer = async () => {
     await window.electronAPI.winddownEnd.startTimer();
   };
@@ -37,6 +41,9 @@ function WinddownEndPopup(): React.ReactElement {
       <div className="popup-footer">
         <button className="btn btn-ghost" onClick={handleDismiss}>
           Skip Timer
+        </button>
+        <button className="btn btn-ghost" onClick={handleSnooze}>
+          Snooze 5 min
         </button>
         <button className="btn btn-primary" onClick={handleStartTimer}>
           Start Timer

@@ -27,6 +27,7 @@ function CheckInPopup(): React.ReactElement {
   // Page 3 (continuing/transitioning) state
   const [isContinuing, setIsContinuing] = useState<boolean | null>(null);
   const [nextTask, setNextTask] = useState<string>('');
+  const [wantsWinddown, setWantsWinddown] = useState<boolean | null>(null);
 
   useEffect(() => {
     // Load existing tags and side items
@@ -59,6 +60,7 @@ function CheckInPopup(): React.ReactElement {
       // Reset page 3 state
       setIsContinuing(null);
       setNextTask('');
+      setWantsWinddown(null);
       // Refresh tags and side items in case new ones were added
       window.electronAPI.checkIns.getUniqueTags().then(setExistingTags);
       window.electronAPI.dopamineMenu.getByCategory('sides').then(setSideItems);
@@ -217,6 +219,7 @@ function CheckInPopup(): React.ReactElement {
         selectedSide: onTask === false && wantsDopamineBoost ? selectedSide ?? undefined : undefined,
         // Timer is now on page 3 for all check-ins
         delayedTimerMinutes: delayedTimerMinutes ?? undefined,
+        wantsWinddown: delayedTimerMinutes !== null ? (wantsWinddown ?? undefined) : undefined,
         // Next task for tracking
         nextTask: nextTaskToSave,
       });
@@ -247,7 +250,7 @@ function CheckInPopup(): React.ReactElement {
 
   const canSubmitPage1 = onTask !== null && flowRating !== null && moodRating !== null && !submitting;
   const canSubmitPage2 = wantsDopamineBoost !== null && !submitting;
-  const canSubmitPage3 = isContinuing !== null && (isContinuing || nextTask.trim()) && !submitting;
+  const canSubmitPage3 = isContinuing !== null && (isContinuing || nextTask.trim()) && (delayedTimerMinutes === null || wantsWinddown !== null) && !submitting;
 
   // Page 3: Continuing or transitioning
   if (currentPage === 3) {
@@ -312,11 +315,35 @@ function CheckInPopup(): React.ReactElement {
                   <button
                     key={minutes}
                     className={`timer-option-btn ${delayedTimerMinutes === minutes ? 'selected' : ''}`}
-                    onClick={() => setDelayedTimerMinutes(delayedTimerMinutes === minutes ? null : minutes)}
+                    onClick={() => {
+                      const newVal = delayedTimerMinutes === minutes ? null : minutes;
+                      setDelayedTimerMinutes(newVal);
+                      setWantsWinddown(null);
+                    }}
                   >
                     {minutes} min
                   </button>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {delayedTimerMinutes !== null && (
+            <div className="question-section">
+              <h3 className="question">Want wind-down time before starting?</h3>
+              <div className="binary-options">
+                <button
+                  className={`option-btn ${wantsWinddown === true ? 'selected yes' : ''}`}
+                  onClick={() => setWantsWinddown(true)}
+                >
+                  Yes, 3 min
+                </button>
+                <button
+                  className={`option-btn ${wantsWinddown === false ? 'selected no' : ''}`}
+                  onClick={() => setWantsWinddown(false)}
+                >
+                  No, start now
+                </button>
               </div>
             </div>
           )}

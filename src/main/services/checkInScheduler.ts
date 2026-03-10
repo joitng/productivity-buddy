@@ -566,7 +566,7 @@ export function showWinddownEndPopup(timerMinutes: number): void {
   pendingTimerDuration = timerMinutes;
 
   winddownEndWindow = new BrowserWindow({
-    width: 350,
+    width: 400,
     height: 280,
     frame: false,
     alwaysOnTop: true,
@@ -598,6 +598,14 @@ export function closeWinddownEndPopup(): void {
     winddownEndWindow.close();
   }
   winddownEndWindow = null;
+}
+
+export function snoozeWinddownEndPopup(): void {
+  const timerMinutes = pendingTimerDuration;
+  closeWinddownEndPopup();
+  setTimeout(() => {
+    showWinddownEndPopup(timerMinutes);
+  }, 5 * 60 * 1000);
 }
 
 export function getPendingTimerDuration(): number {
@@ -741,8 +749,20 @@ function handleSystemWake(): void {
     closeTimerEndPopup();
     closeWinddownEndPopup();
 
-    // Show the returning check-in popup
-    showReturningCheckInPopup();
+    // Only show on weekdays between 6:30am and 7pm
+    const wakeTime = new Date(now);
+    const dayOfWeek = wakeTime.getDay(); // 0=Sun, 6=Sat
+    const hour = wakeTime.getHours();
+    const minute = wakeTime.getMinutes();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const isAfterHours = hour >= 19; // 7pm+
+    const isBeforeHours = hour < 6 || (hour === 6 && minute < 30); // before 6:30am
+
+    if (!isWeekend && !isAfterHours && !isBeforeHours) {
+      showReturningCheckInPopup();
+    } else {
+      console.log('[ReturningCheckIn] Suppressed: weekend, after 7pm, or before 6:30am');
+    }
   }
 
   lastSleepTime = null;
@@ -757,7 +777,7 @@ export function showReturningCheckInPopup(): void {
   }
 
   returningCheckInWindow = new BrowserWindow({
-    width: 400,
+    width: 450,
     height: 380,
     frame: false,
     alwaysOnTop: true,
@@ -793,7 +813,7 @@ export function closeReturningCheckInPopup(): void {
 
 export function resizeReturningCheckInPopup(height: number): void {
   if (returningCheckInWindow && !returningCheckInWindow.isDestroyed()) {
-    returningCheckInWindow.setSize(400, height);
+    returningCheckInWindow.setSize(450, height);
     returningCheckInWindow.center();
   }
 }

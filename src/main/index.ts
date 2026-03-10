@@ -53,6 +53,7 @@ import {
   rescheduleReturningCheckIn,
   getSuggestedRescheduleTimes,
   resizeReturningCheckInPopup,
+  snoozeWinddownEndPopup,
 } from './services/checkInScheduler';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -178,7 +179,7 @@ function registerCheckInHandlers(): void {
       const now = new Date().toISOString();
 
       // Extract nextTask before inserting (it's not a database column)
-      const { nextTask, ...checkInData } = data;
+      const { nextTask, wantsWinddown, ...checkInData } = data;
 
       console.log('[CheckIn] Submitting check-in:', JSON.stringify(checkInData, null, 2));
 
@@ -201,9 +202,25 @@ function registerCheckInHandlers(): void {
 
       closeCheckInPopup();
 
-      // If user selected a delayed timer, schedule it
+      // If user selected a timer, either start immediately or schedule with wind-down
       if (data.delayedTimerMinutes && data.delayedTimerMinutes > 0) {
-        scheduleDelayedTimer(data.delayedTimerMinutes, 3); // 3 minute wind-down
+        if (data.wantsWinddown === false) {
+          // Start timer immediately
+          const mainWindow = getMainWindow();
+          setTimerRunning(true);
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('timer:start', data.delayedTimerMinutes);
+            mainWindow.webContents.send('navigate:timer');
+            showMainWindow();
+            setTimeout(() => {
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('blocker:prompt');
+              }
+            }, 500);
+          }
+        } else {
+          scheduleDelayedTimer(data.delayedTimerMinutes, 3); // 3 minute wind-down
+        }
       }
 
       return { success: true };
@@ -323,18 +340,25 @@ function registerCheckInHandlers(): void {
     closeWinddownEndPopup();
   });
 
+  ipcMain.handle('winddownend:snooze', async () => {
+    snoozeWinddownEndPopup();
+  });
+
   ipcMain.handle('winddownend:startTimer', async () => {
     const timerMinutes = getPendingTimerDuration();
     closeWinddownEndPopup();
 
-    // Enable website blocking for the new session
-    await enableBlocklistFromSettings();
-
-    // Send message to main window to start the timer
     const mainWindow = getMainWindow();
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('timer:start', timerMinutes);
+      mainWindow.webContents.send('navigate:timer');
+      showMainWindow();
       setTimerRunning(true);
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('blocker:prompt');
+        }
+      }, 500);
     }
   });
 
@@ -344,9 +368,6 @@ function registerCheckInHandlers(): void {
     setCurrentTask(data.taskDescription);
     closeReturningCheckInPopup();
 
-    // Enable website blocking for the new session
-    await enableBlocklistFromSettings();
-
     // Send message to main window to start the timer
     // When timer ends, it will automatically show a check-in (all timers do now)
     const mainWindow = getMainWindow();
@@ -355,6 +376,11 @@ function registerCheckInHandlers(): void {
       mainWindow.webContents.send('timer:start', data.timerMinutes);
       mainWindow.webContents.send('navigate:timer');
       showMainWindow();
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('blocker:prompt');
+        }
+      }, 500);
       console.log('[Returning] Started timer for', data.timerMinutes, 'minutes');
     } else {
       console.log('[Returning] WARNING: Main window not available to start timer');

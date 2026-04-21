@@ -1,40 +1,33 @@
-import React, { useState } from 'react';
-import type { WeeklyTask, WeeklyTaskCategory } from '../../../shared/types';
+import React, { useState, useRef } from 'react';
+import type { WeeklyTask } from '../../../shared/types';
 import './DayColumn.css';
 import './WeeklyTasks.css';
 
 interface WeeklyTasksProps {
   tasks: WeeklyTask[];
-  onAddTask: (category: WeeklyTaskCategory, text: string) => void;
-  onToggleTask: (id: string, completed: boolean) => void;
+  onAddTask: (text: string) => void;
   onDeleteTask: (id: string) => void;
   onUpdateTask: (id: string, text: string) => void;
+  onReorderTasks: (reordered: WeeklyTask[]) => void;
 }
 
 function WeeklyTasks({
   tasks,
   onAddTask,
-  onToggleTask,
   onDeleteTask,
   onUpdateTask,
+  onReorderTasks,
 }: WeeklyTasksProps): React.ReactElement {
-  const [newActiveTask, setNewActiveTask] = useState('');
-  const [newFocusTask, setNewFocusTask] = useState('');
+  const [newTask, setNewTask] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const dragIdRef = useRef<string | null>(null);
 
-  const activeTasks = tasks.filter((t) => t.category === 'active');
-  const focusTasks = tasks.filter((t) => t.category === 'focus');
-
-  const handleAddTask = (category: WeeklyTaskCategory) => {
-    const text = category === 'active' ? newActiveTask : newFocusTask;
-    if (text.trim()) {
-      onAddTask(category, text.trim());
-      if (category === 'active') {
-        setNewActiveTask('');
-      } else {
-        setNewFocusTask('');
-      }
+  const handleAdd = () => {
+    if (newTask.trim()) {
+      onAddTask(newTask.trim());
+      setNewTask('');
     }
   };
 
@@ -56,44 +49,57 @@ function WeeklyTasks({
     setEditText('');
   };
 
-  const renderTaskList = (
-    categoryTasks: WeeklyTask[],
-    category: WeeklyTaskCategory,
-    newTaskValue: string,
-    setNewTaskValue: (value: string) => void
-  ) => {
-    const completedCount = categoryTasks.filter((t) => t.completed).length;
-    const totalCount = categoryTasks.length;
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    dragIdRef.current = id;
+    e.dataTransfer.effectAllowed = 'move';
+  };
 
-    return (
-      <div className={`task-category ${category}`}>
-        <div className="category-header">
-          <h3 className="category-title">
-            {category === 'active' ? 'Active Tasks' : 'Focus Tasks'}
-          </h3>
-          {totalCount > 0 && (
-            <span className="task-count">
-              {completedCount}/{totalCount}
-            </span>
-          )}
-        </div>
-        <p className="category-description">
-          {category === 'active'
-            ? 'Tasks requiring active energy'
-            : 'Deep work requiring focused attention'}
-        </p>
+  const handleDragOver = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (id !== dragIdRef.current) setDragOverId(id);
+  };
 
+  const handleDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    const sourceId = dragIdRef.current;
+    if (!sourceId || sourceId === targetId) return;
+
+    const reordered = [...tasks];
+    const fromIdx = reordered.findIndex((t) => t.id === sourceId);
+    const toIdx = reordered.findIndex((t) => t.id === targetId);
+    const [moved] = reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, moved);
+
+    setDragOverId(null);
+    dragIdRef.current = null;
+    onReorderTasks(reordered);
+  };
+
+  const handleDragEnd = () => {
+    setDragOverId(null);
+    dragIdRef.current = null;
+  };
+
+  return (
+    <div className="weekly-tasks day-column">
+      <div className="day-header">
+        <span className="day-name">Foci for the week</span>
+      </div>
+      <div className="day-content">
         <ul className="task-list">
-          {categoryTasks.map((task) => (
-            <li key={task.id} className={`task-item ${task.completed ? 'completed' : ''}`}>
-              <label className="task-checkbox">
-                <input
-                  type="checkbox"
-                  checked={task.completed}
-                  onChange={(e) => onToggleTask(task.id, e.target.checked)}
-                />
-                <span className="checkmark" />
-              </label>
+          {tasks.map((task) => (
+            <li
+              key={task.id}
+              className={`task-item${dragOverId === task.id ? ' drag-over' : ''}`}
+              draggable
+              onDragStart={(e) => handleDragStart(e, task.id)}
+              onDragOver={(e) => handleDragOver(e, task.id)}
+              onDrop={(e) => handleDrop(e, task.id)}
+              onDragEnd={handleDragEnd}
+            >
+              <span className="drag-handle" title="Drag to reorder">⠿</span>
+              <span className="task-bullet">•</span>
 
               {editingId === task.id ? (
                 <input
@@ -117,7 +123,7 @@ function WeeklyTasks({
               <button
                 className="task-delete"
                 onClick={() => onDeleteTask(task.id)}
-                title="Delete task"
+                title="Delete"
               >
                 ×
               </button>
@@ -128,34 +134,21 @@ function WeeklyTasks({
         <div className="add-task">
           <input
             type="text"
-            placeholder={`Add ${category} task...`}
-            value={newTaskValue}
-            onChange={(e) => setNewTaskValue(e.target.value)}
+            placeholder="Add a focus..."
+            value={newTask}
+            onChange={(e) => setNewTask(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') handleAddTask(category);
+              if (e.key === 'Enter') handleAdd();
             }}
           />
           <button
             className="add-task-btn"
-            onClick={() => handleAddTask(category)}
-            disabled={!newTaskValue.trim()}
+            onClick={handleAdd}
+            disabled={!newTask.trim()}
           >
             +
           </button>
         </div>
-      </div>
-    );
-  };
-
-  return (
-    <div className="weekly-tasks day-column">
-      <div className="day-header">
-        <span className="day-name">Tasks</span>
-        <span className="day-date">This Week</span>
-      </div>
-      <div className="day-content">
-        {renderTaskList(activeTasks, 'active', newActiveTask, setNewActiveTask)}
-        {renderTaskList(focusTasks, 'focus', newFocusTask, setNewFocusTask)}
       </div>
     </div>
   );

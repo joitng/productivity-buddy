@@ -6,48 +6,6 @@
   gap: var(--spacing-md);
 }
 
-.task-category {
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-sm);
-}
-
-.task-category.active {
-  border-left: 3px solid var(--primary);
-}
-
-.task-category.focus {
-  border-left: 3px solid #f06595;
-}
-
-.category-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--spacing-xs);
-}
-
-.category-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0;
-}
-
-.task-count {
-  font-size: 11px;
-  color: var(--text-secondary);
-  background: var(--bg-secondary);
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-}
-
-.category-description {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin: 0 0 var(--spacing-xs) 0;
-}
-
 .task-list {
   list-style: none;
   padding: 0;
@@ -56,64 +14,44 @@
 
 .task-item {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: var(--spacing-xs);
   padding: var(--spacing-xs) 0;
   border-bottom: 1px solid var(--border-color);
+  cursor: grab;
 }
 
 .task-item:last-child {
   border-bottom: none;
 }
 
-.task-item.completed .task-text {
-  text-decoration: line-through;
-  color: var(--text-muted);
+.task-item.drag-over {
+  border-top: 2px solid var(--primary);
 }
 
-.task-checkbox {
-  position: relative;
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.task-checkbox input {
-  position: absolute;
+.drag-handle {
   opacity: 0;
-  width: 0;
-  height: 0;
+  color: var(--text-muted);
+  font-size: 14px;
+  flex-shrink: 0;
+  cursor: grab;
+  transition: opacity 0.15s;
 }
 
-.checkmark {
-  width: 14px;
-  height: 14px;
-  border: 2px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  transition: all 0.15s;
+.task-item:hover .drag-handle {
+  opacity: 1;
 }
 
-.task-checkbox input:checked + .checkmark {
-  background: var(--primary);
-  border-color: var(--primary);
-}
-
-.task-checkbox input:checked + .checkmark::after {
-  content: '';
-  position: absolute;
-  left: 4px;
-  top: 1px;
-  width: 4px;
-  height: 7px;
-  border: solid white;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
+.task-bullet {
+  font-size: 18px;
+  color: var(--primary);
+  flex-shrink: 0;
+  line-height: 1;
 }
 
 .task-text {
   flex: 1;
-  font-size: 12px;
+  font-size: 18px;
   color: var(--text-primary);
   cursor: pointer;
   padding: 2px 4px;
@@ -129,7 +67,7 @@
 
 .task-edit-input {
   flex: 1;
-  font-size: 12px;
+  font-size: 18px;
   padding: 2px 6px;
   border: 1px solid var(--primary);
   border-radius: var(--radius-sm);

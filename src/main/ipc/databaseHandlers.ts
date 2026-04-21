@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron';
 import { v4 as uuidv4 } from 'uuid';
-import { eq, and, gte, lte } from 'drizzle-orm';
+import { eq, and, gte, lte, asc } from 'drizzle-orm';
 import { getDatabase, schema } from '../../database';
 import type { ScheduledChunk, ChunkOverride, DayLabel, DayLabelOverride, CheckIn, RecurrenceRule, DopamineMenuItem, DopamineMenuCategory, WeeklyTask, WeeklyTaskCategory } from '../../shared/types';
 
@@ -382,6 +382,7 @@ export function registerDatabaseHandlers(): void {
       .select()
       .from(schema.weeklyTasks)
       .where(eq(schema.weeklyTasks.weekStart, weekStart))
+      .orderBy(asc(schema.weeklyTasks.sortOrder))
       .all();
   });
 

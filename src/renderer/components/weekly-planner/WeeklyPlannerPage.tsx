@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { startOfWeek, addDays, format, addWeeks, subWeeks } from 'date-fns';
-import type { WeeklyPlanDay, GoogleCalendarEvent, WeeklyTask, WeeklyTaskCategory } from '../../../shared/types';
+import type { WeeklyPlanDay, GoogleCalendarEvent, WeeklyTask } from '../../../shared/types';
 import DayColumn from './DayColumn';
 import WeeklyTasks from './WeeklyTasks';
 import './WeeklyPlannerPage.css';
@@ -86,14 +86,14 @@ function WeeklyPlannerPage(): React.ReactElement {
   };
 
   // Weekly Tasks handlers
-  const handleAddTask = async (category: WeeklyTaskCategory, text: string) => {
+  const handleAddTask = async (text: string) => {
     try {
       const newTask = await window.electronAPI.weeklyTasks.create({
         weekStart: weekStartStr,
-        category,
+        category: 'focus',
         text,
         completed: false,
-        sortOrder: weeklyTasks.filter((t) => t.category === category).length,
+        sortOrder: weeklyTasks.length,
       });
       setWeeklyTasks((prev) => [...prev, newTask]);
     } catch (error) {
@@ -129,6 +129,21 @@ function WeeklyPlannerPage(): React.ReactElement {
       );
     } catch (error) {
       console.error('Failed to update task:', error);
+    }
+  };
+
+  const handleReorderTasks = async (reordered: WeeklyTask[]) => {
+    setWeeklyTasks(reordered);
+    try {
+      await Promise.all(
+        reordered.map((t, i) =>
+          t.sortOrder !== i
+            ? window.electronAPI.weeklyTasks.update(t.id, { sortOrder: i })
+            : Promise.resolve(t)
+        )
+      );
+    } catch (error) {
+      console.error('Failed to save task order:', error);
     }
   };
 
@@ -169,6 +184,13 @@ function WeeklyPlannerPage(): React.ReactElement {
       </div>
 
       <div className="week-grid">
+        <WeeklyTasks
+          tasks={weeklyTasks}
+          onAddTask={handleAddTask}
+          onDeleteTask={handleDeleteTask}
+          onUpdateTask={handleUpdateTask}
+          onReorderTasks={handleReorderTasks}
+        />
         {weekDates.map((date) => {
           const dateStr = format(date, 'yyyy-MM-dd');
           const dayPlan = planDays.get(dateStr);
@@ -184,13 +206,6 @@ function WeeklyPlannerPage(): React.ReactElement {
             />
           );
         })}
-        <WeeklyTasks
-          tasks={weeklyTasks}
-          onAddTask={handleAddTask}
-          onToggleTask={handleToggleTask}
-          onDeleteTask={handleDeleteTask}
-          onUpdateTask={handleUpdateTask}
-        />
       </div>
     </div>
   );

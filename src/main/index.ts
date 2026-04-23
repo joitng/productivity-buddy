@@ -54,6 +54,9 @@ import {
   getSuggestedRescheduleTimes,
   resizeReturningCheckInPopup,
   snoozeWinddownEndPopup,
+  closeDayPlanPopup,
+  markDayPlanReviewed,
+  showReturningCheckInPopup,
 } from './services/checkInScheduler';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -342,6 +345,19 @@ function registerCheckInHandlers(): void {
 
   ipcMain.handle('winddownend:snooze', async () => {
     snoozeWinddownEndPopup();
+  });
+
+  // Day plan popup handlers
+  ipcMain.handle('dayplan:skip', async () => {
+    closeDayPlanPopup();
+    // Do not mark reviewed — will show again next time
+  });
+
+  ipcMain.handle('dayplan:reviewed', async () => {
+    markDayPlanReviewed();
+    closeDayPlanPopup();
+    // Now show the returning check-in popup (day plan is reviewed so it won't loop)
+    showReturningCheckInPopup();
   });
 
   ipcMain.handle('winddownend:startTimer', async () => {

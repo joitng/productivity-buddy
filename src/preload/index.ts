@@ -231,6 +231,12 @@ const electronAPI = {
     delete: (id: string): Promise<void> =>
       ipcRenderer.invoke('db:weekly-tasks:delete', id),
   },
+
+  // Day plan popup
+  dayPlan: {
+    skip: (): Promise<void> => ipcRenderer.invoke('dayplan:skip'),
+    reviewed: (): Promise<void> => ipcRenderer.invoke('dayplan:reviewed'),
+  },
 };
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);

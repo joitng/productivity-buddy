@@ -134,6 +134,14 @@ const config: ForgeConfig = {
               js: './src/preload/index.ts',
             },
           },
+          {
+            html: './src/day-plan-popup/index.html',
+            js: './src/day-plan-popup/index.tsx',
+            name: 'day_plan_window',
+            preload: {
+              js: './src/preload/index.ts',
+            },
+          },
         ],
       },
     }),

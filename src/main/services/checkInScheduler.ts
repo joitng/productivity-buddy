@@ -66,8 +66,38 @@ declare const WINDDOWN_END_WINDOW_WEBPACK_ENTRY: string;
 declare const WINDDOWN_END_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
 declare const RETURNING_CHECKIN_WINDOW_WEBPACK_ENTRY: string;
 declare const RETURNING_CHECKIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
+declare const DAY_PLAN_WINDOW_WEBPACK_ENTRY: string;
+declare const DAY_PLAN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
 
 let winddownEndWindow: BrowserWindow | null = null;
+let dayPlanWindow: BrowserWindow | null = null;
+
+// Day plan reviewed state — resets at midnight each day
+let dayPlanReviewedDate: string | null = null;
+
+function getTodayStr(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+export function isDayPlanReviewed(): boolean {
+  return dayPlanReviewedDate === getTodayStr();
+}
+
+export function markDayPlanReviewed(): void {
+  dayPlanReviewedDate = getTodayStr();
+}
+
+function scheduleMidnightReset(): void {
+  const now = new Date();
+  const midnight = new Date(now);
+  midnight.setHours(24, 0, 0, 0);
+  const delay = midnight.getTime() - now.getTime();
+  setTimeout(() => {
+    dayPlanReviewedDate = null;
+    scheduleMidnightReset();
+  }, delay);
+}
 
 export function scheduleCheckInsForToday(): void {
   // Clear existing scheduled check-ins
@@ -720,6 +750,8 @@ function handleChunkStart(chunkId: string, chunkName: string): void {
 
 // Power monitor setup for sleep/wake detection
 export function setupPowerMonitor(): void {
+  scheduleMidnightReset();
+
   powerMonitor.on('suspend', () => {
     console.log('System suspending - recording sleep time');
     lastSleepTime = Date.now();
@@ -769,7 +801,44 @@ function handleSystemWake(): void {
 }
 
 // Returning check-in popup functions
+export function showDayPlanPopup(): void {
+  if (dayPlanWindow && !dayPlanWindow.isDestroyed()) {
+    dayPlanWindow.focus();
+    return;
+  }
+
+  dayPlanWindow = new BrowserWindow({
+    width: 460,
+    height: 660,
+    frame: false,
+    alwaysOnTop: true,
+    resizable: false,
+    skipTaskbar: true,
+    webPreferences: {
+      preload: DAY_PLAN_WINDOW_PRELOAD_WEBPACK_ENTRY,
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  dayPlanWindow.loadURL(DAY_PLAN_WINDOW_WEBPACK_ENTRY);
+  dayPlanWindow.center();
+  dayPlanWindow.on('closed', () => { dayPlanWindow = null; });
+}
+
+export function closeDayPlanPopup(): void {
+  if (dayPlanWindow && !dayPlanWindow.isDestroyed()) {
+    dayPlanWindow.close();
+  }
+  dayPlanWindow = null;
+}
+
 export function showReturningCheckInPopup(): void {
+  if (!isDayPlanReviewed()) {
+    showDayPlanPopup();
+    return;
+  }
+
   if (returningCheckInWindow && !returningCheckInWindow.isDestroyed()) {
     returningCheckInWindow.focus();
     returningCheckInWindow.webContents.send('returning:show', currentTaskDescription);

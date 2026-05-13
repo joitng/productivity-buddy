@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { format, isToday } from 'date-fns';
 import type { WeeklyPlanDay, GoogleCalendarEvent } from '../../../shared/types';
+import { renderAnnotatedText } from '../../utils/annotations';
 import './DayColumn.css';
 
 interface DayColumnProps {
@@ -22,33 +23,6 @@ const HEADLINE_COLORS = [
   '#868e96', // Gray
 ];
 
-// Parses [[highlighted text::hover note]] syntax into annotated spans
-function renderAnnotatedText(text: string): React.ReactNode {
-  const pattern = /\[\[([^\]]+?)::([^\]]+?)\]\]/g;
-  const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-  let key = 0;
-
-  while ((match = pattern.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index));
-    }
-    parts.push(
-      <span key={key++} className="annotation-mark">
-        {match[1]}
-        <span className="annotation-tooltip">{match[2]}</span>
-      </span>
-    );
-    lastIndex = match.index + match[0].length;
-  }
-
-  if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
-  }
-
-  return parts.length > 0 ? <>{parts}</> : text;
-}
 
 function DayColumn({ date, plan, meetings, onFieldUpdate }: DayColumnProps): React.ReactElement {
   const [editingField, setEditingField] = useState<string | null>(null);

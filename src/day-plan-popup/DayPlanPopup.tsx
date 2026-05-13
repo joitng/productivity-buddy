@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import type { WeeklyPlanDay, GoogleCalendarEvent } from '../shared/types';
+import { renderAnnotatedText } from '../renderer/utils/annotations';
 import '../renderer/components/weekly-planner/DayColumn.css';
 
 const HEADLINE_COLORS = [
@@ -171,7 +172,7 @@ function DayPlanPopup(): React.ReactElement {
         className={`editable-text ${!value ? 'placeholder' : ''}`}
         onClick={() => startEditing(field, value || '')}
       >
-        {value || placeholder}
+        {value ? renderAnnotatedText(value) : placeholder}
       </div>
     );
   };
@@ -242,7 +243,7 @@ function DayPlanPopup(): React.ReactElement {
           <ol className="goals-list">
             {goals.map((goal, i) => (
               <li key={i} className="goal-item">
-                <span className="goal-text">{goal}</span>
+                <span className="goal-text">{renderAnnotatedText(goal)}</span>
                 <button className="remove-goal" onClick={() => removeGoal(i)}>×</button>
               </li>
             ))}
@@ -265,7 +266,7 @@ function DayPlanPopup(): React.ReactElement {
                 onChange={() => updateField('starGoalCompleted', !plan.starGoalCompleted)}
               />
               <span className="star-icon">★</span>
-              <span className="star-goal-text">{plan.starGoal}</span>
+              <span className="star-goal-text">{renderAnnotatedText(plan.starGoal)}</span>
               <button className="remove-goal" onClick={async () => {
                 await updateField('starGoal', null);
                 await updateField('starGoalCompleted', false);

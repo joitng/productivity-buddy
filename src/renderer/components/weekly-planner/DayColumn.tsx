@@ -22,6 +22,34 @@ const HEADLINE_COLORS = [
   '#868e96', // Gray
 ];
 
+// Parses [[highlighted text::hover note]] syntax into annotated spans
+function renderAnnotatedText(text: string): React.ReactNode {
+  const pattern = /\[\[([^\]]+?)::([^\]]+?)\]\]/g;
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    parts.push(
+      <span key={key++} className="annotation-mark">
+        {match[1]}
+        <span className="annotation-tooltip">{match[2]}</span>
+      </span>
+    );
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return parts.length > 0 ? <>{parts}</> : text;
+}
+
 function DayColumn({ date, plan, meetings, onFieldUpdate }: DayColumnProps): React.ReactElement {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
@@ -118,6 +146,9 @@ function DayColumn({ date, plan, meetings, onFieldUpdate }: DayColumnProps): Rea
 
   const renderEditableField = (field: string, value: string | undefined | null, placeholder: string, multiline = false) => {
     if (editingField === field) {
+      const editPlaceholder = multiline
+        ? `${placeholder}\n(tip: [[text::hover note]] to annotate)`
+        : placeholder;
       if (multiline) {
         return (
           <textarea
@@ -127,7 +158,7 @@ function DayColumn({ date, plan, meetings, onFieldUpdate }: DayColumnProps): Rea
             onChange={(e) => setEditValue(e.target.value)}
             onBlur={saveEdit}
             onKeyDown={handleKeyDown}
-            placeholder={placeholder}
+            placeholder={editPlaceholder}
             rows={3}
           />
         );
@@ -140,7 +171,7 @@ function DayColumn({ date, plan, meetings, onFieldUpdate }: DayColumnProps): Rea
           onChange={(e) => setEditValue(e.target.value)}
           onBlur={saveEdit}
           onKeyDown={handleKeyDown}
-          placeholder={placeholder}
+          placeholder={editPlaceholder}
         />
       );
     }
@@ -150,7 +181,7 @@ function DayColumn({ date, plan, meetings, onFieldUpdate }: DayColumnProps): Rea
         className={`editable-text ${!value ? 'placeholder' : ''}`}
         onClick={() => startEditing(field, value || '')}
       >
-        {value || placeholder}
+        {value ? renderAnnotatedText(value) : placeholder}
       </div>
     );
   };
@@ -217,7 +248,7 @@ function DayColumn({ date, plan, meetings, onFieldUpdate }: DayColumnProps): Rea
           <ol className="goals-list">
             {goals.map((goal, index) => (
               <li key={index} className="goal-item">
-                <span className="goal-text">{goal}</span>
+                <span className="goal-text">{renderAnnotatedText(goal)}</span>
                 <button className="remove-goal" onClick={() => removeGoal(index)}>×</button>
               </li>
             ))}
@@ -244,7 +275,7 @@ function DayColumn({ date, plan, meetings, onFieldUpdate }: DayColumnProps): Rea
                 onChange={toggleStarGoal}
               />
               <span className="star-icon">★</span>
-              <span className="star-goal-text">{plan.starGoal}</span>
+              <span className="star-goal-text">{renderAnnotatedText(plan.starGoal)}</span>
               <button className="remove-goal" onClick={removeStarGoal}>×</button>
             </div>
           ) : (

@@ -340,3 +340,52 @@
 textarea.edit-input {
   min-height: 60px;
 }
+
+/* Inline annotations: [[text::note]] */
+.annotation-mark {
+  background: rgba(250, 210, 60, 0.28);
+  border-radius: 2px;
+  border-bottom: 1px solid rgba(250, 180, 30, 0.6);
+  cursor: help;
+  position: relative;
+  display: inline;
+  padding: 0 1px;
+}
+
+.annotation-tooltip {
+  display: block;
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e1e2e;
+  color: #e0e0f0;
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 6px 10px;
+  border-radius: 6px;
+  white-space: pre-wrap;
+  min-width: 100px;
+  max-width: 200px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  z-index: 200;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+  text-align: left;
+  word-break: break-word;
+}
+
+.annotation-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #1e1e2e;
+}
+
+.annotation-mark:hover .annotation-tooltip {
+  opacity: 1;
+}

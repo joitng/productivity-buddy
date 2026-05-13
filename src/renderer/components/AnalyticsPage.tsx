@@ -71,6 +71,7 @@ function AnalyticsPage(): React.ReactElement {
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'all'>('all');
+  const [timeChartRange, setTimeChartRange] = useState<'day' | 'yesterday' | 'week'>('week');
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
   const [wordComments, setWordComments] = useState<CommentDetail[]>([]);
   const [wordCategory, setWordCategory] = useState<string>('');
@@ -283,6 +284,50 @@ function AnalyticsPage(): React.ReactElement {
     };
   }, [filteredCheckIns]);
 
+  // Time spent per task, filtered to day or week
+  const timeSpentData = useMemo(() => {
+    const now = new Date();
+    let cutoff: Date;
+    let ceiling: Date | null = null;
+
+    if (timeChartRange === 'day') {
+      cutoff = new Date(now);
+      cutoff.setHours(0, 0, 0, 0);
+    } else if (timeChartRange === 'yesterday') {
+      cutoff = new Date(now);
+      cutoff.setDate(cutoff.getDate() - 1);
+      cutoff.setHours(0, 0, 0, 0);
+      ceiling = new Date(now);
+      ceiling.setHours(0, 0, 0, 0);
+    } else {
+      cutoff = new Date(now);
+      cutoff.setDate(now.getDate() - 7);
+    }
+
+    const minutesByTag = new Map<string, number>();
+    for (const c of checkIns) {
+      if (!c.timerMinutes || c.timerMinutes <= 0) continue;
+      const ts = new Date(c.timestamp);
+      if (ts < cutoff) continue;
+      if (ceiling && ts >= ceiling) continue;
+      const tags = (c.taskTag?.trim() || 'Untagged').split(',').map(t => t.trim()).filter(t => t);
+      for (const tag of tags) {
+        minutesByTag.set(tag, (minutesByTag.get(tag) || 0) + c.timerMinutes);
+      }
+    }
+
+    return Array.from(minutesByTag.entries())
+      .map(([tag, minutes]) => ({ tag, minutes }))
+      .sort((a, b) => b.minutes - a.minutes);
+  }, [checkIns, timeChartRange]);
+
+  const formatMinutes = (mins: number): string => {
+    if (mins < 60) return `${mins}m`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  };
+
   if (loading) {
     return (
       <div className="analytics-page">
@@ -326,6 +371,57 @@ function AnalyticsPage(): React.ReactElement {
             All Time
           </button>
         </div>
+      </div>
+
+      {/* Time Spent per Task */}
+      <div className="time-chart-section card">
+        <div className="time-chart-header">
+          <div>
+            <h2 className="section-title">Time Spent by Task</h2>
+            <p className="section-description">Total focused time logged per task tag from completed timers</p>
+          </div>
+          <div className="time-range-selector">
+            <button
+              className={`range-btn ${timeChartRange === 'day' ? 'active' : ''}`}
+              onClick={() => setTimeChartRange('day')}
+            >
+              Today
+            </button>
+            <button
+              className={`range-btn ${timeChartRange === 'yesterday' ? 'active' : ''}`}
+              onClick={() => setTimeChartRange('yesterday')}
+            >
+              Yesterday
+            </button>
+            <button
+              className={`range-btn ${timeChartRange === 'week' ? 'active' : ''}`}
+              onClick={() => setTimeChartRange('week')}
+            >
+              Past Week
+            </button>
+          </div>
+        </div>
+        {timeSpentData.length === 0 ? (
+          <p className="no-data">No timer data for this period yet. Complete some pomodoro sessions to see time tracking!</p>
+        ) : (
+          <div className="chart-bars">
+            {(() => {
+              const maxMins = Math.max(...timeSpentData.map(d => d.minutes));
+              return timeSpentData.map(({ tag, minutes }) => (
+                <div key={tag} className="chart-bar">
+                  <div className="chart-bar-value">{formatMinutes(minutes)}</div>
+                  <div className="chart-bar-track">
+                    <div
+                      className="chart-bar-fill"
+                      style={{ height: `${(minutes / maxMins) * 100}%` }}
+                    />
+                  </div>
+                  <div className="chart-bar-label" title={tag}>{tag}</div>
+                </div>
+              ));
+            })()}
+          </div>
+        )}
       </div>
 
       {/* Overall Summary */}

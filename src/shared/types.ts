@@ -74,6 +74,7 @@ export interface CheckIn {
   wantsDopamineBoost?: boolean; // null/undefined if on-task
   selectedSide?: string; // Selected dopamine menu side item
   delayedTimerMinutes?: number; // 10, 15, or 25 (null if not selected)
+  timerMinutes?: number; // Actual completed timer duration that triggered this check-in
   createdAt: string;
 }
 
@@ -157,6 +158,7 @@ export interface WeeklyTask {
   category: WeeklyTaskCategory;
   text: string;
   completed: boolean;
+  isHeading: boolean;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;

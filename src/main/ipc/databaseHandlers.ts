@@ -406,6 +406,7 @@ export function registerDatabaseHandlers(): void {
     if ('completed' in updates) updateData.completed = updates.completed;
     if ('category' in updates) updateData.category = updates.category;
     if ('sortOrder' in updates) updateData.sortOrder = updates.sortOrder;
+    if ('isHeading' in updates) updateData.isHeading = updates.isHeading;
 
     db.update(schema.weeklyTasks)
       .set(updateData)

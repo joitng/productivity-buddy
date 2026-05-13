@@ -60,6 +60,7 @@ export const checkIns = sqliteTable('check_ins', {
   wantsDopamineBoost: integer('wants_dopamine_boost', { mode: 'boolean' }), // null if on-task
   selectedSide: text('selected_side'), // Selected dopamine menu side item
   delayedTimerMinutes: integer('delayed_timer_minutes'), // 10, 15, or 25 (null if not selected)
+  timerMinutes: integer('timer_minutes'), // Actual completed timer duration
   createdAt: text('created_at').notNull(),
 });
 
@@ -130,6 +131,7 @@ export const weeklyTasks = sqliteTable('weekly_tasks', {
   category: text('category').notNull(), // 'active' | 'focus'
   text: text('text').notNull(),
   completed: integer('completed', { mode: 'boolean' }).notNull().default(false),
+  isHeading: integer('is_heading', { mode: 'boolean' }).notNull().default(false),
   sortOrder: integer('sort_order').notNull().default(0),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),

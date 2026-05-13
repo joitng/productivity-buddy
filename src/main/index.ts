@@ -65,6 +65,7 @@ if (require('electron-squirrel-startup')) {
 }
 
 let handlersRegistered = false;
+let pendingTimerMinutes: number | null = null;
 
 const initializeApp = (): void => {
   if (handlersRegistered) return;
@@ -181,8 +182,12 @@ function registerCheckInHandlers(): void {
       const db = getDatabase();
       const now = new Date().toISOString();
 
-      // Extract nextTask before inserting (it's not a database column)
+      // Extract nextTask/wantsWinddown before inserting (not DB columns)
       const { nextTask, wantsWinddown, ...checkInData } = data;
+
+      // Attach the completed timer duration if a timer just ended
+      const timerMinutes = pendingTimerMinutes;
+      pendingTimerMinutes = null;
 
       console.log('[CheckIn] Submitting check-in:', JSON.stringify(checkInData, null, 2));
 
@@ -190,6 +195,7 @@ function registerCheckInHandlers(): void {
         .values({
           id: uuidv4(),
           ...checkInData,
+          timerMinutes: timerMinutes ?? undefined,
           createdAt: now,
         })
         .run();
@@ -282,6 +288,7 @@ function registerCheckInHandlers(): void {
   // All timers now trigger a check-in when they end
   ipcMain.handle('timerend:show', async (_, durationMinutes: number) => {
     console.log('[TimerEnd] Timer ended after', durationMinutes, 'minutes - showing check-in');
+    pendingTimerMinutes = durationMinutes;
     setTimerRunning(false);
     // Disable website blocking when timer ends
     disableBlocking().catch((err) => console.error('[WebsiteBlocker] Cleanup error:', err));

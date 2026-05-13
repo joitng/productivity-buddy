@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { startOfWeek, addDays, format, addWeeks, subWeeks } from 'date-fns';
+import { startOfWeek, addDays, format, addWeeks, subWeeks, parseISO } from 'date-fns';
 import type { WeeklyPlanDay, GoogleCalendarEvent, WeeklyTask } from '../../../shared/types';
 import DayColumn from './DayColumn';
 import WeeklyTasks from './WeeklyTasks';
@@ -42,7 +42,35 @@ function WeeklyPlannerPage(): React.ReactElement {
       }
       setPlanDays(planMap);
       setGoogleEvents(events);
-      setWeeklyTasks(tasks);
+
+      // Auto-populate headings from the most recent previous week that had data
+      let finalTasks = tasks;
+      if (tasks.length === 0) {
+        for (let weeksBack = 1; weeksBack <= 8; weeksBack++) {
+          const prevStart = format(subWeeks(parseISO(startStr), weeksBack), 'yyyy-MM-dd');
+          const prevTasks = await window.electronAPI.weeklyTasks.getByWeek(prevStart);
+          if (prevTasks.length > 0) {
+            const prevHeadings = prevTasks.filter((t) => t.isHeading);
+            if (prevHeadings.length > 0) {
+              await Promise.all(
+                prevHeadings.map((h) =>
+                  window.electronAPI.weeklyTasks.create({
+                    weekStart: startStr,
+                    category: 'focus',
+                    text: h.text,
+                    completed: false,
+                    isHeading: true,
+                    sortOrder: h.sortOrder,
+                  })
+                )
+              );
+              finalTasks = await window.electronAPI.weeklyTasks.getByWeek(startStr);
+            }
+            break;
+          }
+        }
+      }
+      setWeeklyTasks(finalTasks);
     } catch (error) {
       console.error('Failed to load weekly planner data:', error);
     } finally {
@@ -86,13 +114,14 @@ function WeeklyPlannerPage(): React.ReactElement {
   };
 
   // Weekly Tasks handlers
-  const handleAddTask = async (text: string) => {
+  const handleAddTask = async (text: string, isHeading = false) => {
     try {
       const newTask = await window.electronAPI.weeklyTasks.create({
         weekStart: weekStartStr,
         category: 'focus',
         text,
         completed: false,
+        isHeading,
         sortOrder: weeklyTasks.length,
       });
       setWeeklyTasks((prev) => [...prev, newTask]);
@@ -186,7 +215,8 @@ function WeeklyPlannerPage(): React.ReactElement {
       <div className="week-grid">
         <WeeklyTasks
           tasks={weeklyTasks}
-          onAddTask={handleAddTask}
+          onAddTask={(text) => handleAddTask(text, false)}
+          onAddHeading={(text) => handleAddTask(text, true)}
           onDeleteTask={handleDeleteTask}
           onUpdateTask={handleUpdateTask}
           onReorderTasks={handleReorderTasks}

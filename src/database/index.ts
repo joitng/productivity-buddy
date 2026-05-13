@@ -226,6 +226,11 @@ function initializeDatabase(): void {
   } catch {
     // Column already exists, ignore error
   }
+  try {
+    sqliteDb.exec(`ALTER TABLE check_ins ADD COLUMN timer_minutes INTEGER;`);
+  } catch {
+    // Column already exists, ignore error
+  }
 
   // Migration: Add primary_label_color column to weekly_plan_days
   try {
@@ -249,6 +254,13 @@ function initializeDatabase(): void {
   }
   try {
     sqliteDb.exec(`ALTER TABLE weekly_plan_days ADD COLUMN star_goal_completed INTEGER;`);
+  } catch {
+    // Column already exists, ignore error
+  }
+
+  // Migration: Add is_heading column to weekly_tasks
+  try {
+    sqliteDb.exec(`ALTER TABLE weekly_tasks ADD COLUMN is_heading INTEGER NOT NULL DEFAULT 0;`);
   } catch {
     // Column already exists, ignore error
   }

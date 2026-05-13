@@ -6,6 +6,7 @@ import './WeeklyTasks.css';
 interface WeeklyTasksProps {
   tasks: WeeklyTask[];
   onAddTask: (text: string) => void;
+  onAddHeading: (text: string) => void;
   onDeleteTask: (id: string) => void;
   onUpdateTask: (id: string, text: string) => void;
   onReorderTasks: (reordered: WeeklyTask[]) => void;
@@ -14,11 +15,13 @@ interface WeeklyTasksProps {
 function WeeklyTasks({
   tasks,
   onAddTask,
+  onAddHeading,
   onDeleteTask,
   onUpdateTask,
   onReorderTasks,
 }: WeeklyTasksProps): React.ReactElement {
   const [newTask, setNewTask] = useState('');
+  const [newHeading, setNewHeading] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -28,6 +31,13 @@ function WeeklyTasks({
     if (newTask.trim()) {
       onAddTask(newTask.trim());
       setNewTask('');
+    }
+  };
+
+  const handleAddHeadingSubmit = () => {
+    if (newHeading.trim()) {
+      onAddHeading(newHeading.trim());
+      setNewHeading('');
     }
   };
 
@@ -91,7 +101,7 @@ function WeeklyTasks({
           {tasks.map((task) => (
             <li
               key={task.id}
-              className={`task-item${dragOverId === task.id ? ' drag-over' : ''}`}
+              className={`task-item${task.isHeading ? ' heading-item' : ''}${dragOverId === task.id ? ' drag-over' : ''}`}
               draggable
               onDragStart={(e) => handleDragStart(e, task.id)}
               onDragOver={(e) => handleDragOver(e, task.id)}
@@ -99,12 +109,13 @@ function WeeklyTasks({
               onDragEnd={handleDragEnd}
             >
               <span className="drag-handle" title="Drag to reorder">⠿</span>
-              <span className="task-bullet">•</span>
+
+              {!task.isHeading && <span className="task-bullet">•</span>}
 
               {editingId === task.id ? (
                 <input
                   type="text"
-                  className="task-edit-input"
+                  className={task.isHeading ? 'heading-edit-input' : 'task-edit-input'}
                   value={editText}
                   onChange={(e) => setEditText(e.target.value)}
                   onBlur={saveEdit}
@@ -115,7 +126,10 @@ function WeeklyTasks({
                   autoFocus
                 />
               ) : (
-                <span className="task-text" onClick={() => startEditing(task)}>
+                <span
+                  className={task.isHeading ? 'heading-text' : 'task-text'}
+                  onClick={() => startEditing(task)}
+                >
                   {task.text}
                 </span>
               )}
@@ -147,6 +161,25 @@ function WeeklyTasks({
             disabled={!newTask.trim()}
           >
             +
+          </button>
+        </div>
+
+        <div className="add-heading">
+          <input
+            type="text"
+            placeholder="Add section heading..."
+            value={newHeading}
+            onChange={(e) => setNewHeading(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleAddHeadingSubmit();
+            }}
+          />
+          <button
+            className="add-heading-btn"
+            onClick={handleAddHeadingSubmit}
+            disabled={!newHeading.trim()}
+          >
+            §
           </button>
         </div>
       </div>
